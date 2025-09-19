@@ -1,19 +1,20 @@
-package com.manhduc205.ezgear.model;
-import com.manhduc205.ezgear.models.User;
-import com.manhduc205.ezgear.models.Role;
+package com.manhduc205.ezgear.models;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Column(name = "userroles",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "role_id"}))
+@Table(name = "userroles")
 @Getter
 @Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserRole {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
@@ -21,5 +22,4 @@ public class UserRole {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private Role role;
-
 }

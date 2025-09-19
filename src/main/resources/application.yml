@@ -8,9 +8,10 @@ spring:
     name: ezgear-backend
 
   datasource:
-    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8mb4
+    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci
     username: root
-    password: ${DB_PASSWORD}
+    password: 123456
+#    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -40,8 +41,8 @@ spring:
 
 jwt:
   expiration: 2592000       # 30 ngày 30*24*60*60
-  secret-key: ${JWT_SECRET}  # secret base64
-
+#  secret-key: ${JWT_SECRET}  # secret base64
+  secret-key: nguyenduc2023135
 
 springdoc:
   swagger-ui:
@@ -49,7 +50,7 @@ springdoc:
     operationsSorter: method # s?p x?p API theo method (GET, POST,...)
     tagsSorter: alpha        # s?p x?p tags theo alphabet
   api-docs:
-    path: /api-docs          # custom path cho OpenAPI JSON
+    path: /v3/api-docs       # custom path cho OpenAPI JSON
 
 logging:
   level:
