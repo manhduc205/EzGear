@@ -1,1 +1,59 @@
-spring.application.name=ezgear
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: ezgear-backend
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8mb4
+    username: root
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update   # dev th� ?? update, prod th� n�n ??i th�nh none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  sendgrid:
+    api-key: ${SENDGRID_API_KEY}
+    from-email: ${SENDGRID_FROM_EMAIL}
+    templateId: ${SENDGRID_TEMPLATE_ID}
+    verificationLink: ${SENDGRID_VERIFICATION_LINK}
+
+jwt:
+  expiration: 2592000       # 30 ngày 30*24*60*60
+  secret-key: ${JWT_SECRET}  # secret base64
+
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html   # custom path, v� d?: /docs, /swagger, /api-docs-ui
+    operationsSorter: method # s?p x?p API theo method (GET, POST,...)
+    tagsSorter: alpha        # s?p x?p tags theo alphabet
+  api-docs:
+    path: /api-docs          # custom path cho OpenAPI JSON
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
