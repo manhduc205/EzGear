@@ -1,13 +1,16 @@
 package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.ProductDTO;
+import com.manhduc205.ezgear.dtos.ProductImageDTO;
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.mapper.ProductMapper;
 import com.manhduc205.ezgear.models.Brand;
 import com.manhduc205.ezgear.models.Category;
 import com.manhduc205.ezgear.models.Product;
+import com.manhduc205.ezgear.models.ProductImage;
 import com.manhduc205.ezgear.repositories.BrandRepository;
 import com.manhduc205.ezgear.repositories.CategoryRepository;
+import com.manhduc205.ezgear.repositories.ProductImageRepository;
 import com.manhduc205.ezgear.repositories.ProductRepository;
 import com.manhduc205.ezgear.services.CategoryService;
 import com.manhduc205.ezgear.services.ProductService;
@@ -24,6 +27,7 @@ public class ProductServiceImpl implements ProductService {
     private ProductMapper productMapper;
     private final CategoryRepository categoryRepository;
     private final CategoryService categoryService;
+    private final ProductImageRepository productImageRepository;
 
     @Override
     public Product getProductById(Long id) throws DataNotFoundException {
@@ -87,4 +91,25 @@ public class ProductServiceImpl implements ProductService {
     public boolean existsProduct(String productName) throws Exception {
         return productRepository.existsByName(productName);
     }
+
+    @Override
+    public ProductImage createProductImage(Long productId , ProductImageDTO productImageDTO) throws Exception {
+        Product existsProduct = productRepository.findById(productId)
+                .orElseThrow(() -> new DataNotFoundException("Product not found with id = " + productId));
+        ProductImage productImage = ProductImage
+                .builder()
+                .product(existsProduct)
+                .imageUrl(productImageDTO.getImageUrl())
+                .build();
+
+        int size = productImageRepository.findByProductId(productId).size();
+        if(size >= ProductImage.MAXIMUM_IMAGES_PER_PRODUCT){
+            throw new DataNotFoundException("Number of images lest " +  ProductImage.MAXIMUM_IMAGES_PER_PRODUCT);
+        }
+        return productImageRepository.save(productImage);
+    }
+
+
+
+
 }
