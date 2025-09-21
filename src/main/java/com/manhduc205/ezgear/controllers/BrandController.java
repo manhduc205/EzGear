@@ -1,9 +1,8 @@
 package com.manhduc205.ezgear.controllers;
 
-import com.manhduc205.ezgear.dto.BrandDTO;
-import com.manhduc205.ezgear.dto.responses.ApiResponse;
+import com.manhduc205.ezgear.dtos.BrandDTO;
+import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.models.Brand;
-import com.manhduc205.ezgear.models.Category;
 import com.manhduc205.ezgear.services.BrandService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
-import com.manhduc205.ezgear.dto.CategoryDTO;
+import com.manhduc205.ezgear.dtos.CategoryDTO;
 import com.manhduc205.ezgear.models.Category;
 import com.manhduc205.ezgear.repositories.CategoryRepository;
 import com.manhduc205.ezgear.services.CategoryService;

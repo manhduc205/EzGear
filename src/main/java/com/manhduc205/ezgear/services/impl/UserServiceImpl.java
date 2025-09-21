@@ -1,7 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
-import com.manhduc205.ezgear.conponents.JwtTokenUtil;
-import com.manhduc205.ezgear.dto.UserDTO;
+import com.manhduc205.ezgear.dtos.UserDTO;
 import com.manhduc205.ezgear.models.Role;
 import com.manhduc205.ezgear.models.User;
 import com.manhduc205.ezgear.models.UserRole;
@@ -10,13 +9,10 @@ import com.manhduc205.ezgear.repositories.UserRepository;
 import com.manhduc205.ezgear.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
 import java.util.Set;
 
 @Service

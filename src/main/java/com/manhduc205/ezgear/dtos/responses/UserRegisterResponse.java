@@ -1,4 +1,4 @@
-package com.manhduc205.ezgear.dto.responses;
+package com.manhduc205.ezgear.dtos.responses;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.manhduc205.ezgear.models.User;

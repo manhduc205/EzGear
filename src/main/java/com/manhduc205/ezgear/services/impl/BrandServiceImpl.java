@@ -1,8 +1,7 @@
 package com.manhduc205.ezgear.services.impl;
 
-import com.manhduc205.ezgear.dto.BrandDTO;
+import com.manhduc205.ezgear.dtos.BrandDTO;
 import com.manhduc205.ezgear.models.Brand;
-import com.manhduc205.ezgear.models.Category;
 import com.manhduc205.ezgear.repositories.BrandRepository;
 import com.manhduc205.ezgear.services.BrandService;
 import lombok.RequiredArgsConstructor;

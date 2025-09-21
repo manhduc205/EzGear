@@ -1,9 +1,9 @@
 package com.manhduc205.ezgear.controllers;
 
-import com.manhduc205.ezgear.dto.UserDTO;
-import com.manhduc205.ezgear.dto.UserLoginDTO;
-import com.manhduc205.ezgear.dto.responses.ApiResponse;
-import com.manhduc205.ezgear.dto.responses.UserRegisterResponse;
+import com.manhduc205.ezgear.dtos.UserDTO;
+import com.manhduc205.ezgear.dtos.UserLoginDTO;
+import com.manhduc205.ezgear.dtos.responses.ApiResponse;
+import com.manhduc205.ezgear.dtos.responses.UserRegisterResponse;
 import com.manhduc205.ezgear.models.User;
 import com.manhduc205.ezgear.services.AuthService;
 

@@ -1,7 +1,5 @@
-package com.manhduc205.ezgear.config;
+package com.manhduc205.ezgear.configurations;
 
-import com.manhduc205.ezgear.repositories.UserRepository;
-import com.manhduc205.ezgear.services.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,7 +1,7 @@
 package com.manhduc205.ezgear.controllers;
 
-import com.manhduc205.ezgear.dto.CategoryDTO;
-import com.manhduc205.ezgear.dto.responses.ApiResponse;
+import com.manhduc205.ezgear.dtos.CategoryDTO;
+import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.models.Category;
 import com.manhduc205.ezgear.services.CategoryService;
 import jakarta.validation.Valid;
@@ -36,6 +36,7 @@ public class CategoryController {
                                 .message("Validation failed ")
                                 .errors(errorMessage)
                                 .build()
+
                 );
             }
             Category newCategory = categoryService.createCategory(categoryDTO);

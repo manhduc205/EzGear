@@ -1,4 +1,4 @@
-package com.manhduc205.ezgear.dto.responses;
+package com.manhduc205.ezgear.dtos.responses;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;

@@ -1,6 +1,6 @@
 package com.manhduc205.ezgear.services;
 
-import com.manhduc205.ezgear.dto.CategoryDTO;
+import com.manhduc205.ezgear.dtos.CategoryDTO;
 import com.manhduc205.ezgear.models.Category;
 import org.springframework.stereotype.Service;
 

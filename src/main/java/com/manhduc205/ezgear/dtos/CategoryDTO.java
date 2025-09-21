@@ -1,4 +1,4 @@
-package com.manhduc205.ezgear.dto;
+package com.manhduc205.ezgear.dtos;
 
 import jakarta.validation.constraints.NotEmpty;
 import lombok.*;

@@ -1,8 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.conponents.JwtTokenUtil;
-import com.manhduc205.ezgear.dto.request.LoginRequest;
-import com.manhduc205.ezgear.dto.responses.AuthResponse;
 
 import com.manhduc205.ezgear.models.User;
 import com.manhduc205.ezgear.repositories.TokenRepository;

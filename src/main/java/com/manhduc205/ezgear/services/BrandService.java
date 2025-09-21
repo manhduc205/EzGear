@@ -1,6 +1,6 @@
 package com.manhduc205.ezgear.services;
 
-import com.manhduc205.ezgear.dto.BrandDTO;
+import com.manhduc205.ezgear.dtos.BrandDTO;
 import com.manhduc205.ezgear.models.Brand;
 import org.springframework.stereotype.Service;
 

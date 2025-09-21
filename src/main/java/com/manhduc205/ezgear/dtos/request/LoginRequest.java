@@ -1,4 +1,4 @@
-package com.manhduc205.ezgear.dto.request;
+package com.manhduc205.ezgear.dtos.request;
 
 import lombok.Data;
 
