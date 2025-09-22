@@ -39,10 +39,7 @@ spring:
     templateId: ${SENDGRID_TEMPLATE_ID}
     verificationLink: ${SENDGRID_VERIFICATION_LINK}
 
-  cloudinary:
-    cloud_name: ${CLOUDINARY_CLOUD_NAME}
-    api_key: ${CLOUDINARY_API_KEY}
-    api_secret: ${CLOUDINARY_API_SECRET}
+
 
 
 
@@ -65,3 +62,7 @@ logging:
     org.springframework.web: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+cloudinary:
+  cloud_name: ${CLOUDINARY_CLOUD_NAME}
+  api_key: ${CLOUDINARY_API_KEY}
+  api_secret: ${CLOUDINARY_API_SECRET}
