@@ -6,6 +6,7 @@ import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductImage;
 import com.manhduc205.ezgear.repositories.ProductRepository;
+import com.manhduc205.ezgear.services.CloudinaryService;
 import com.manhduc205.ezgear.services.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ import java.util.UUID;
 public class ProductController {
 
     private final ProductService productService;
+    private final CloudinaryService cloudinaryService;
 
     @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PostMapping("")
@@ -162,12 +164,15 @@ public class ProductController {
                             .body(ApiResponse.builder().error("File images type failed").build());
                 }
 
-                // lưu file và cập nhật thumnail trong DTO
-                String fileName = storeFile(file);
+//                 lưu file và cập nhật thumnail trong DTO
+//                String fileName = storeFile(file);
+
+                String imageUrl = cloudinaryService.uploadFile(file);
+
                 // lưu vào đối tượng product trong DB ->
                 ProductImage productImage = productService.createProductImage(
                         existsProduct.getId(),
-                        ProductImageDTO.builder().imageUrl(fileName).build()
+                        ProductImageDTO.builder().imageUrl(imageUrl).build()
                 );
                 productImages.add(productImage);
             }

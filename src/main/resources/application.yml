@@ -39,6 +39,13 @@ spring:
     templateId: ${SENDGRID_TEMPLATE_ID}
     verificationLink: ${SENDGRID_VERIFICATION_LINK}
 
+  cloudinary:
+    cloud_name: ${CLOUDINARY_CLOUD_NAME}
+    api_key: ${CLOUDINARY_API_KEY}
+    api_secret: ${CLOUDINARY_API_SECRET}
+
+
+
 jwt:
   expiration: 2592000       # 30 ngày 30*24*60*60
 #  secret-key: ${JWT_SECRET}  # secret base64
