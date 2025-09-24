@@ -2,7 +2,9 @@ package com.manhduc205.ezgear.controllers;
 
 import com.manhduc205.ezgear.dtos.UserDTO;
 import com.manhduc205.ezgear.dtos.UserLoginDTO;
+import com.manhduc205.ezgear.dtos.request.LoginRequest;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
+import com.manhduc205.ezgear.dtos.responses.AuthResponse;
 import com.manhduc205.ezgear.dtos.responses.UserRegisterResponse;
 import com.manhduc205.ezgear.models.User;
 import com.manhduc205.ezgear.services.AuthService;
@@ -31,13 +33,10 @@ public class AuthController {
     private final UserService userService;
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@Valid @RequestBody UserLoginDTO userLoginDTO) {
-        String token = authService.login(userLoginDTO.getEmail(), userLoginDTO.getPassword());
-        // trả về token trong respone
-        return ResponseEntity.ok(token);
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
+        return ResponseEntity.ok(authService.authenticateUser(loginRequest));
 
     }
-
     @PostMapping("/register")
     @Transactional
     public ResponseEntity<ApiResponse<?>> createUser (@RequestBody @Valid UserDTO userDTO,
@@ -53,7 +52,6 @@ public class AuthController {
                                 .build()
                 );
             }
-
             //confirm pass
             if (!userDTO.getPassword().equals(userDTO.getRetypePassword())){
                 return ResponseEntity.badRequest().body(ApiResponse.builder()

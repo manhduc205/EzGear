@@ -32,6 +32,7 @@ spring:
     redis:
       host: localhost
       port: 6379
+      timeout: 60000
 
   sendgrid:
     api-key: ${SENDGRID_API_KEY}
@@ -39,14 +40,11 @@ spring:
     templateId: ${SENDGRID_TEMPLATE_ID}
     verificationLink: ${SENDGRID_VERIFICATION_LINK}
 
-
-
-
-
 jwt:
-  expiration: 2592000       # 30 ngày 30*24*60*60
-#  secret-key: ${JWT_SECRET}  # secret base64
-  secret-key: nguyenduc2023135
+  expiryMinutes: 30
+  expiryDay: 14
+  accessKey: GlAw+6W4hnl2kIp8r6aRqUYUOh7UOFMzrkRsWS72GrLlIHztggMW2Ew3MAyP6RhS3aag5LO8Xb4cKrc4XwurtA==
+  refreshKey: DF02w99BSRP1e3uXlSTAHR2q5VW2YU4UXPfu3a/bI+RFoWfTExGN5UpyLZZCbhL0Q3E7XrejhlO6d9qLj474mg==
 
 springdoc:
   swagger-ui:

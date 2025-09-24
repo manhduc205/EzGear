@@ -13,6 +13,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -38,6 +39,11 @@ public class UserServiceImpl implements UserService {
         if (role.getCode().equalsIgnoreCase("SYS_ADMIN")) {
             throw new BadCredentialsException("You cannot self-register as system-admin");
         }
+        boolean staffFlag = false;
+        if (role.getCode().equalsIgnoreCase("SYS_ADMIN")  || role.getCode().equalsIgnoreCase("ADMIN")
+                || role.getCode().equalsIgnoreCase("MANAGER")) {
+            staffFlag = true;
+        }
         // kiểm tra xem nếu có accontId, không yêu cầu pass
         User newUser = User.builder()
                 .email(userDTO.getEmail())
@@ -45,7 +51,7 @@ public class UserServiceImpl implements UserService {
                 .fullName(userDTO.getFullName())
                 .passwordHash(passwordEncoder.encode(userDTO.getPassword()))
                 .status(User.Status.ACTIVE)
-                .isStaff(false)
+                .isStaff(staffFlag)
                 .build();
 
         UserRole userRole = UserRole.builder()
@@ -56,5 +62,11 @@ public class UserServiceImpl implements UserService {
         newUser.setUserRoles(Set.of(userRole));
         return userRepository.save(newUser);
 
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+
+        return userRepository.findByEmail(email);
     }
 }

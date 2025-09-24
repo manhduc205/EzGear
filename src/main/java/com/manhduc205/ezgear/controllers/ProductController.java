@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.controllers;
 
+import com.github.javafaker.Faker;
 import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
@@ -25,10 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -103,27 +101,27 @@ public class ProductController {
         }
     }
 
-    private String storeFile(MultipartFile file) throws IOException {
-        if (!isImageFile(file) || file.getOriginalFilename() == null) {
-            throw new IOException("Invalid image file");
-        }
-
-        String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-        // thêm UUID vào trước tên file để đảm bảo tên file là duy nhất
-        String uniqueFilename = UUID.randomUUID() + "_" + fileName;
-        // đường dẫn đến thư mục mà bạn muốn lưu file
-        Path uploadDir = Paths.get("uploads");
-        // kiểm tra và tạo thư mục nêú nó không tồn tại
-        if (!Files.exists(uploadDir)) {
-            Files.createDirectories(uploadDir);
-        }
-        // đường dẫn đầy đủ đến file
-        Path destination = Paths.get(uploadDir.toString(), uniqueFilename);
-        // sao chép file vào thư mục
-        Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
-
-        return uniqueFilename;
-    }
+//    private String storeFile(MultipartFile file) throws IOException {
+//        if (!isImageFile(file) || file.getOriginalFilename() == null) {
+//            throw new IOException("Invalid image file");
+//        }
+//
+//        String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
+//        // thêm UUID vào trước tên file để đảm bảo tên file là duy nhất
+//        String uniqueFilename = UUID.randomUUID() + "_" + fileName;
+//        // đường dẫn đến thư mục mà bạn muốn lưu file
+//        Path uploadDir = Paths.get("uploads");
+//        // kiểm tra và tạo thư mục nêú nó không tồn tại
+//        if (!Files.exists(uploadDir)) {
+//            Files.createDirectories(uploadDir);
+//        }
+//        // đường dẫn đầy đủ đến file
+//        Path destination = Paths.get(uploadDir.toString(), uniqueFilename);
+//        // sao chép file vào thư mục
+//        Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
+//
+//        return uniqueFilename;
+//    }
 
     // hàm kiểm tra xem có đúng định dạng file ảnh hay không
     private boolean isImageFile(MultipartFile file) {
@@ -191,4 +189,61 @@ public class ProductController {
 
     }
 
+    @GetMapping("/image/{id}")
+    public ResponseEntity<?> viewImage(@PathVariable("id") Long imageId) throws Exception {
+        try {
+            ProductImage productImage = productService.getProductImageById(imageId);
+            if (productImage == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.builder()
+                                .message("Image not found")
+                                .build());
+            }
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .payload(productImage)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.builder()
+                            .message("Error while fetching image")
+                            .error(e.getMessage())
+                            .build()
+            );
+        }
+    }
+
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PostMapping("/generate-faceker-products")
+    public ResponseEntity<?> generateFacekerProducts() throws Exception {
+        Faker faker = new Faker(new Locale("vi"));
+        for (int  i = 0; i < 10; i++ ) {
+            String productName = faker.commerce().productName();
+            if (productService.existsProduct(productName)) {
+                continue;
+            }
+            String slug = productName.toLowerCase()
+                    .replaceAll("[^a-z0-9\\s-]", "")
+                    .replaceAll("\\s+", "-");
+            ProductDTO productDTO = ProductDTO.builder()
+                    .name(productName)
+                    .shortDesc(faker.lorem().sentence())
+                    .categoryId((long) faker.number().numberBetween(2, 7))
+                    .brandId((long) faker.number().numberBetween(1, 5)) // random brand
+                    .slug(slug)
+                    .imageUrl("/images/default.png")
+                    .warrantyMonths(12)
+                    .isActive(true)
+                    .build();
+
+            try {
+                productService.createProduct(productDTO);
+            }catch (Exception e){
+                return ResponseEntity.badRequest().body(e.getMessage());
+            }
+        }
+        return ResponseEntity.ok("Fake product generated successfully");
+
+    }
 }

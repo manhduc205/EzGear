@@ -109,7 +109,12 @@ public class ProductServiceImpl implements ProductService {
         return productImageRepository.save(productImage);
     }
 
+    @Override
+    public ProductImage getProductImageById(Long imageId) throws Exception {
+        return productImageRepository.findById(imageId)
+                .orElseThrow(() -> new DataNotFoundException("Product image not found with id = " + imageId));
 
+    }
 
 
 }

@@ -1,99 +1,153 @@
 package com.manhduc205.ezgear.conponents;
 import com.manhduc205.ezgear.models.Token;
 import com.manhduc205.ezgear.repositories.TokenRepository;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtTokenUtil {
+
     private final TokenRepository tokenRepository;
-    // add minutes , ...
-    @Value("${jwt.expiration}") // tính bằng giây
-    private long expiration;
 
-    @Value("${jwt.secret-key}") // secret key base64
-    private String secretKey;
+    @Value("${jwt.accessKey}")
+    private String accessKeyBase64;
 
+    @Value("${jwt.refreshKey}")
+    private String refreshKeyBase64;
 
-    public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
-    }
-    // generate token using jwt utility class and return token as string
-    public String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
-        try {
-            return Jwts
-                    .builder()
-                    .setClaims(extraClaims) // tùy biến payload
-                    .setSubject(userDetails.getUsername())
-                    .setIssuedAt(new Date(System.currentTimeMillis())) // iat thời điểm phát hành
-                    .setExpiration(new Date(System.currentTimeMillis() + expiration * 1000))
-                    .signWith(getSignInKey(),  SignatureAlgorithm.HS256) // ký
-                    .compact();
-        }catch (Exception e){
-            log.error("Cannot genarate Token : {}",e.getMessage());
-            return null;
-        }
-    }
-    // decode and get the key
-    private Key getSignInKey() {
-        // decode SECRET_KEY
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-        return Keys.hmacShaKeyFor(keyBytes);
-    }
-    // Parse + get claims
-    private Claims extractAllClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSignInKey())
-                .build()
-                .parseClaimsJws(token).getBody();
+    @Value("${jwt.expiryMinutes}") // AccessToken (phút)
+    private long expiryMinutes;
 
-    }
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+    @Value("${jwt.expiryDay}")     // RefreshToken (ngày)
+    private long expiryDay;
+
+    private Key accessKey;
+    private Key refreshKey;
+
+    @PostConstruct
+    public void init() {
+        accessKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(accessKeyBase64));
+        refreshKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(refreshKeyBase64));
     }
 
+    // ================= ACCESS TOKEN =================
 
-    // extract user from token
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
+    public String generateAccessToken(Authentication authentication) {
+        UserDetails principal = (UserDetails) authentication.getPrincipal();
+        String roles = principal.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(","));
+
+        return buildToken(principal.getUsername(), roles, accessKey, getAccessTokenExpiryDate());
     }
 
-    // if token expirated
-    public boolean isTokenExpirated(String token) {
-        return extractExpiration(token).before(new Date());
-    }
+    public boolean validateAccessToken(String token, UserDetails userDetails) {
+        if (!validateToken(token, accessKey)) return false;
 
-    // get expiration data from token
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-    // Validate token
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String email = extractEmail(token);
+        String username = getUsernameFromAccessToken(token);
         Token existingToken = tokenRepository.findByToken(token).orElse(null);
-
         if (existingToken == null || existingToken.isRevoked()) {
             return false;
         }
-        return email.equals(userDetails.getUsername()) && !isTokenExpirated(token);
+
+        return username.equals(userDetails.getUsername());
     }
 
+    public String getUsernameFromAccessToken(String token) {
+        return extractClaims(token, accessKey).getSubject();
+    }
+
+    public String getRolesFromAccessToken(String token) {
+        return extractClaims(token, accessKey).get("roles", String.class);
+    }
+
+    public LocalDateTime getAccessTokenExpiry(String token) {
+        return toLocalDateTime(extractClaims(token, accessKey).getExpiration());
+    }
+
+    // ================= REFRESH TOKEN =================
+
+    public String generateRefreshToken(String username) {
+        return buildToken(username, null, refreshKey, getRefreshTokenExpiryDate());
+    }
+
+    public boolean validateRefreshToken(String token) {
+        if (!validateToken(token, refreshKey)) return false;
+
+        Token existingToken = tokenRepository.findByToken(token).orElse(null);
+        return existingToken != null && !existingToken.isRevoked();
+    }
+
+    public String getUsernameFromRefreshToken(String token) {
+        return extractClaims(token, refreshKey).getSubject();
+    }
+
+    // ================= COMMON UTILS =================
+
+    private String buildToken(String subject, String roles, Key key, Date expiryDate) {
+        JwtBuilder builder = Jwts.builder()
+                .setSubject(subject)
+                .setIssuedAt(new Date())
+                .setExpiration(expiryDate)
+                .signWith(key, SignatureAlgorithm.HS512);
+
+        if (roles != null) {
+            builder.claim("roles", roles);
+        }
+
+        return builder.compact();
+    }
+
+    private boolean validateToken(String token, Key key) {
+        try {
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException ex) {
+            log.error("Invalid JWT token: {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    private Claims extractClaims(String token, Key key) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private Date getAccessTokenExpiryDate() {
+        return new Date(System.currentTimeMillis() + 1000 * 60 * expiryMinutes);
+    }
+
+    private Date getRefreshTokenExpiryDate() {
+        return new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24 * expiryDay);
+    }
+
+    private LocalDateTime toLocalDateTime(Date date) {
+        return date.toInstant()
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDateTime();
+    }
 }

@@ -14,4 +14,5 @@ public interface ProductService {
         void deleteProduct(Long id) throws Exception;
         boolean existsProduct( String productName) throws Exception;
         ProductImage createProductImage(Long id, ProductImageDTO productImageDTO) throws Exception;
+        ProductImage getProductImageById(Long id) throws Exception;
 }
