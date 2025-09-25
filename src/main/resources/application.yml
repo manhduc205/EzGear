@@ -33,6 +33,7 @@ spring:
       host: localhost
       port: 6379
       timeout: 60000
+      enabled: false
 
   sendgrid:
     api-key: ${SENDGRID_API_KEY}
@@ -41,10 +42,10 @@ spring:
     verificationLink: ${SENDGRID_VERIFICATION_LINK}
 
 jwt:
-  expiryMinutes: 30
-  expiryDay: 14
-  accessKey: GlAw+6W4hnl2kIp8r6aRqUYUOh7UOFMzrkRsWS72GrLlIHztggMW2Ew3MAyP6RhS3aag5LO8Xb4cKrc4XwurtA==
-  refreshKey: DF02w99BSRP1e3uXlSTAHR2q5VW2YU4UXPfu3a/bI+RFoWfTExGN5UpyLZZCbhL0Q3E7XrejhlO6d9qLj474mg==
+  expiryMinutes: ${JWT_EXPIRY_MINUTES}
+  expiryDay: ${JWT_EXPIRY_DAY}
+  accessKey: ${JWT_ACCESS_KEY}
+  refreshKey: ${JWT_REFRESH_KEY}
 
 springdoc:
   swagger-ui:

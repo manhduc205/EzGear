@@ -47,6 +47,8 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
                         .requestMatchers("/auth/**").permitAll() // ✅ fix ở đây
+                        .requestMatchers("/products/generate-faceker-products").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .build();

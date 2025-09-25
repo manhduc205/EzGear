@@ -20,17 +20,11 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/products")
+@RequestMapping("/products")
 public class ProductController {
 
     private final ProductService productService;
@@ -214,7 +208,7 @@ public class ProductController {
         }
     }
 
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PostMapping("/generate-faceker-products")
     public ResponseEntity<?> generateFacekerProducts() throws Exception {
         Faker faker = new Faker(new Locale("vi"));
@@ -226,13 +220,19 @@ public class ProductController {
             String slug = productName.toLowerCase()
                     .replaceAll("[^a-z0-9\\s-]", "")
                     .replaceAll("\\s+", "-");
+
+            String fakeImageUrl = "https://picsum.photos/800/600";
+
+
+            String uploadedImageUrl = cloudinaryService.uploadFileFromUrl(fakeImageUrl);
+
             ProductDTO productDTO = ProductDTO.builder()
                     .name(productName)
                     .shortDesc(faker.lorem().sentence())
-                    .categoryId((long) faker.number().numberBetween(2, 7))
-                    .brandId((long) faker.number().numberBetween(1, 5)) // random brand
+                    .categoryId((long) faker.number().numberBetween(1, 3))
+                    .brandId((long) faker.number().numberBetween(1, 8)) // random brand
                     .slug(slug)
-                    .imageUrl("/images/default.png")
+                    .imageUrl(uploadedImageUrl)
                     .warrantyMonths(12)
                     .isActive(true)
                     .build();

@@ -150,4 +150,8 @@ public class JwtTokenUtil {
                 .atZone(java.time.ZoneId.systemDefault())
                 .toLocalDateTime();
     }
+    // TTL của refreshToken (ms) → dùng cho Redis
+    public long getRefreshTokenExpiryDuration() {
+        return 1000L * 60 * 24 * expiryDay;
+    }
 }

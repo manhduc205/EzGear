@@ -20,6 +20,12 @@ public class CloudinaryService {
                 ObjectUtils.asMap("resource_type", "auto"));
         return uploadResult.get("secure_url").toString(); // link ảnh Cloudinary
     }
+    // test faker
+    public String uploadFileFromUrl(String imageUrl) throws IOException {
+        Map uploadResult = cloudinary.uploader().upload(imageUrl, ObjectUtils.asMap("resource_type", "auto"));
+        return uploadResult.get("secure_url").toString();
+    }
+
 
     public String getPublicIdFromUrl(String url) {
         String[] parts = url.split("/");

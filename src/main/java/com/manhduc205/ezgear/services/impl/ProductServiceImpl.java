@@ -24,7 +24,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final BrandRepository brandRepository;
-    private ProductMapper productMapper;
+    private final ProductMapper productMapper;
     private final CategoryRepository categoryRepository;
     private final CategoryService categoryService;
     private final ProductImageRepository productImageRepository;
@@ -40,11 +40,11 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public Product createProduct(ProductDTO productDTO) throws DataNotFoundException {
         Category existsCategory = categoryRepository
-                .findById(productDTO.getId())
+                .findById(productDTO.getCategoryId())
                 .orElseThrow(() -> new DataNotFoundException("Category not found"));
 
         Brand existBrand = brandRepository
-                .findById(productDTO.getId())
+                .findById(productDTO.getBrandId())
                 .orElseThrow(() -> new DataNotFoundException("Brand not found"));
         Product product = productMapper.toProduct(productDTO);
         product.setCategory(existsCategory);

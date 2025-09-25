@@ -5,9 +5,9 @@ import com.manhduc205.ezgear.conponents.JwtTokenUtil;
 import com.manhduc205.ezgear.dtos.request.LoginRequest;
 import com.manhduc205.ezgear.dtos.responses.AuthResponse;
 import com.manhduc205.ezgear.models.User;
-import com.manhduc205.ezgear.repositories.TokenRepository;
 import com.manhduc205.ezgear.repositories.UserRepository;
 import com.manhduc205.ezgear.services.AuthService;
+import com.manhduc205.ezgear.services.RedisService;
 import com.manhduc205.ezgear.services.UserService;
 import com.manhduc205.ezgear.utils.TokenType;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +21,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -29,11 +30,11 @@ import java.util.stream.Collectors;
 public class AuthServiceImpl implements AuthService {
 
     private final JwtTokenUtil jwtTokenUtil;
-    private final TokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
+    private final RedisService  redisService;
 
     @Override
     public AuthResponse  login(String email, String password) {
@@ -59,10 +60,13 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = jwtTokenUtil.generateAccessToken(authentication);
         String refreshToken = jwtTokenUtil.generateRefreshToken(user.getUsername());
 
-        /**
-         * TODO lưu refreshToken vào Redis
-         */
-//        refreshTokenService.createRefreshToken(user, refreshToken, jwtTokenUtil.getRefreshTokenExpiryDate());
+        // lưu refreshToken vào Redis
+        redisService.saveTokenRefresh(
+                user.getId(),
+                refreshToken,
+                jwtTokenUtil.getRefreshTokenExpiryDuration(),
+                TimeUnit.MILLISECONDS
+        );
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -72,7 +76,7 @@ public class AuthServiceImpl implements AuthService {
                 .username(user.getEmail())
                 .roles(user.getUserRoles()
                         .stream()
-                        .map(role -> role.getRole().getName())
+                        .map(role -> "ROLE_" + role.getRole().getCode().toUpperCase())
                         .collect(Collectors.toSet()))
                 .build();
     }
