@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @Table(name = "productskus")
 @Builder
+@Entity
 public class ProductSKU extends AbstractEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id",nullable = false)
@@ -27,6 +28,9 @@ public class ProductSKU extends AbstractEntity {
 
     @Column(name = "weight_gram")
     private Integer weightGram;
+
+    @Column(name = "barcode")
+    private String barcode;
 
     @Column(length = 50)
     private String sizeMm;

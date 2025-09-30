@@ -25,12 +25,13 @@ import java.util.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/products")
+@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
 public class ProductController {
 
     private final ProductService productService;
     private final CloudinaryService cloudinaryService;
 
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+
     @PostMapping("")
     public ResponseEntity<?> createProduct(@Valid @RequestBody ProductDTO productDTO, BindingResult bindingResult) throws Exception{
         try{

@@ -28,7 +28,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         Set<GrantedAuthority> authorities = user.getUserRoles() != null ?
                 user.getUserRoles().stream()
                         .map(UserRole::getRole)
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName().toUpperCase()))
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getCode().toUpperCase()))
                         .collect(Collectors.toSet()) : Set.of();
         if (authorities.isEmpty()) {
             authorities.add(new SimpleGrantedAuthority("ROLE_USER"));

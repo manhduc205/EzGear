@@ -48,7 +48,8 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/auth/**").permitAll() // ✅ fix ở đây
                         .requestMatchers("/products/generate-faceker-products").permitAll()
-
+                        .requestMatchers("/products/**").permitAll()
+                        .requestMatchers("/product-skus/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .build();
