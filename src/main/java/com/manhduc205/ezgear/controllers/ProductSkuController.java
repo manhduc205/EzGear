@@ -4,7 +4,6 @@ import com.manhduc205.ezgear.dtos.ProductSkuDTO;
 import com.manhduc205.ezgear.dtos.request.ProductSkuSearchRequest;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.models.ProductSKU;
-import com.manhduc205.ezgear.services.ProductService;
 import com.manhduc205.ezgear.services.ProductSkuService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

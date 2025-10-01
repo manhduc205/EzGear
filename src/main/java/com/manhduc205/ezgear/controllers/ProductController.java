@@ -25,15 +25,15 @@ import java.util.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/products")
-@PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
 public class ProductController {
 
     private final ProductService productService;
     private final CloudinaryService cloudinaryService;
 
 
-    @PostMapping("")
-    public ResponseEntity<?> createProduct(@Valid @RequestBody ProductDTO productDTO, BindingResult bindingResult) throws Exception{
+    @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> createProduct(@Valid @RequestPart ProductDTO productDTO
+            ,@RequestPart(value = "files", required = false) List<MultipartFile> files, BindingResult bindingResult) throws Exception{
         try{
             if(bindingResult.hasErrors()){
                 List<String> errorMessage = bindingResult.getFieldErrors()
@@ -47,7 +47,21 @@ public class ProductController {
                                 .build()
                 );
             }
+            if (files != null && !files.isEmpty()) {
+                String mainImageUrl = cloudinaryService.uploadFile(files.get(0));
+                productDTO.setImageUrl(mainImageUrl); // gán vào DTO trước khi createProduct
+            }
             Product newProduct = productService.createProduct(productDTO);
+            // upload và lưu ảnh phụ
+            List<ProductImage> productImages = new ArrayList<>();
+            for (MultipartFile file : files) {
+                String imageUrl = cloudinaryService.uploadFile(file);
+                ProductImage img = productService.createProductImage(
+                        newProduct.getId(),
+                        ProductImageDTO.builder().imageUrl(imageUrl).build()
+                );
+                productImages.add(img);
+            }
             return ResponseEntity.ok(
                     ApiResponse.builder().success(true)
                             .message("Created product successfully")
@@ -61,7 +75,7 @@ public class ProductController {
                     .build());
         }
     }
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateProduct(@PathVariable("id") Long id,
                                            @RequestBody ProductDTO productDTO){
@@ -78,7 +92,7 @@ public class ProductController {
                     .build());
         }
     }
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteProductById(@PathVariable("id") Long id) {
         try {
@@ -123,7 +137,7 @@ public class ProductController {
         String contentType = file.getContentType();
         return contentType != null && contentType.startsWith("image/");
     }
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PostMapping(
             value = "/uploads/{id}",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE

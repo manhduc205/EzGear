@@ -16,11 +16,11 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/brands")
+@RequestMapping("/brands")
 public class BrandController {
     private final BrandService brandService;
 
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PostMapping("")
     public ResponseEntity<?> createBrand(@Valid @RequestBody BrandDTO brandDTO, BindingResult bindingResult) {
         try {
@@ -50,12 +50,12 @@ public class BrandController {
 
     @GetMapping("")
     public ResponseEntity<?> getAllBrands() {
-        List<Brand> brands = brandService.getAllBrands();
+        List<BrandDTO> brands = brandService.getAllBrands();
         return ResponseEntity.ok(ApiResponse.builder().success(true)
                 .payload(brands)
                 .build());
     }
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateBrand(@PathVariable("id") Long id, @RequestBody BrandDTO brandDTO) {
         Brand brand = brandService.updateBrand(id, brandDTO);
@@ -65,7 +65,7 @@ public class BrandController {
                 .build());
     }
 
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteBrand(@PathVariable("id") Long id) {
         try {
