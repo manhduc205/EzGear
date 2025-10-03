@@ -20,4 +20,10 @@ public class ProducStockController {
         return ResponseEntity.ok(productStockService.adjustStock(productStockDTO, delta));
     }
     // tiếp phần getAvailable
+
+    @GetMapping("/available")
+    public ResponseEntity<?> availableStock(@RequestParam Long skuId, @RequestParam Long warehouseId) {
+        int available = productStockService.getAvailable(skuId, warehouseId);
+        return ResponseEntity.ok(available);
+    }
 }

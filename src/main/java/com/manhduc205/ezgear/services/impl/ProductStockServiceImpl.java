@@ -11,6 +11,8 @@ import com.manhduc205.ezgear.services.ProductStockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class ProductStockServiceImpl implements ProductStockService {
@@ -21,7 +23,7 @@ public class ProductStockServiceImpl implements ProductStockService {
 
     //Input: ProductStockDTO + delta (số lượng cộng/trừ).
     @Override
-    public ProductStock adjustStock(ProductStockDTO productStockDTO, int delta) {
+    public ProductStockDTO adjustStock(ProductStockDTO productStockDTO, int delta) {
         ProductStock productStock = productStockRepository.findByProductSkuIdAndWarehouseId(productStockDTO.getSkuId(),productStockDTO.getWarehouseId())
                 .orElseGet(() ->{
                     ProductSKU sku = productSkuRepository.findById(productStockDTO.getSkuId())
@@ -37,11 +39,21 @@ public class ProductStockServiceImpl implements ProductStockService {
                             .build();
                 });
         productStock.setQtyOnHand(productStock.getQtyOnHand() + delta);
-        return productStockRepository.save(productStock);
+        ProductStock saved = productStockRepository.save(productStock);
+        return ProductStockDTO.builder()
+                .id(saved.getId())
+                .skuId(saved.getProductSku().getId())
+                .warehouseId(saved.getWarehouse().getId())
+                .qtyOnHand(saved.getQtyOnHand())
+                .qtyReserved(saved.getQtyReserved())
+                .safetyStock(saved.getSafetyStock())
+                .build();
     }
 
     @Override
     public int getAvailable(Long skuId, Long warehouseId) {
-        return 0;
+        Optional<ProductStock> productStock = productStockRepository.findByProductSkuIdAndWarehouseId(skuId,warehouseId);
+         return productStock.map(stock -> stock.getQtyOnHand() - stock.getQtyReserved())
+                .orElse(0);
     }
 }

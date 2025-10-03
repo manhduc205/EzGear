@@ -11,7 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "braches")
+@Table(name = "branches")
 public class Branch extends AbstractEntity{
 
     @Column(nullable = false, unique = true)
