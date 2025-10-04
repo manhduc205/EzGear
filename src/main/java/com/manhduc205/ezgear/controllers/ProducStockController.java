@@ -1,10 +1,8 @@
 package com.manhduc205.ezgear.controllers;
 
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
-import com.manhduc205.ezgear.models.ProductStock;
 import com.manhduc205.ezgear.services.ProductStockService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
