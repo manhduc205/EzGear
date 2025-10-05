@@ -3,6 +3,7 @@ package com.manhduc205.ezgear.services.impl;
 import com.manhduc205.ezgear.dtos.StockTransactionReportDTO;
 import com.manhduc205.ezgear.models.*;
 import com.manhduc205.ezgear.repositories.*;
+import com.manhduc205.ezgear.services.ProductService;
 import com.manhduc205.ezgear.services.StockTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,12 +33,14 @@ public class StockTransactionServiceImpl implements StockTransactionService {
                     tx.getSkuId(), tx.getWarehouseId()).orElse(null);
             AuditLog audit = auditLogRepository.findTopByEntityTypeAndEntityIdOrderByCreatedAtDesc(
                     "StockTransaction", tx.getId());
+            String imageUrl = sku.getProduct().getImageUrl();
 
             String agent = audit != null
                     ? userRepository.findById(audit.getActorId()).map(User::getUsername).orElse("System")
                     : "System";
 
             return StockTransactionReportDTO.builder()
+                    .imageUrl(imageUrl)
                     .productVariant(sku != null ? sku.getName() : "N/A")
                     .sku(sku != null ? sku.getSku() : "")
                     .barcode(sku != null ? sku.getBarcode() : "")

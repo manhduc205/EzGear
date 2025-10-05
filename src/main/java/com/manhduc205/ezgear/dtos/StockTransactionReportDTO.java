@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class StockTransactionReportDTO {
+    private String imageUrl;
     private String productVariant;   // tên + option
     private String sku;
     private String barcode;
