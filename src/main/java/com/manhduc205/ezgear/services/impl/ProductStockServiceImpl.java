@@ -53,7 +53,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     @Override
     public int getAvailable(Long skuId, Long warehouseId) {
         Optional<ProductStock> productStock = productStockRepository.findByProductSkuIdAndWarehouseId(skuId,warehouseId);
-         return productStock.map(stock -> stock.getQtyOnHand() - stock.getQtyReserved())
+         return productStock.map(stock -> stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock())
                 .orElse(0);
     }
 }

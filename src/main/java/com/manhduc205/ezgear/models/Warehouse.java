@@ -8,9 +8,9 @@ import lombok.*;
 @Table(name = "warehouses")
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @Getter
 @Setter
+@Builder
 public class Warehouse extends AbstractEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)

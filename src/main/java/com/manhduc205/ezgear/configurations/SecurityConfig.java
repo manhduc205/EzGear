@@ -67,6 +67,7 @@ public class SecurityConfig {
                         .requestMatchers("/product-skus/**").permitAll()
                         .requestMatchers("/stocks/**").permitAll()
                         .requestMatchers("/stock-transactions").permitAll()
+                        .requestMatchers("/purchase-orders/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .build();
