@@ -68,6 +68,7 @@ public class SecurityConfig {
                         .requestMatchers("/stocks/**").permitAll()
                         .requestMatchers("/stock-transactions").permitAll()
                         .requestMatchers("/purchase-orders/**").permitAll()
+                        .requestMatchers("/cart/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .build();

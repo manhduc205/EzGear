@@ -1,6 +1,7 @@
 package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.WarehouseDTO;
+import com.manhduc205.ezgear.exception.RequestException;
 import com.manhduc205.ezgear.models.Branch;
 import com.manhduc205.ezgear.models.Warehouse;
 import com.manhduc205.ezgear.repositories.BranchRepository;
@@ -15,12 +16,12 @@ import java.util.*;
 @RequiredArgsConstructor
 public class WarehouseServiceImpl implements WarehouseService {
 
-    private final WarehouseRepository warehouseRepo;
-    private final BranchRepository branchRepo;
+    private final WarehouseRepository warehouseRepository;
+    private final BranchRepository branchRepository;
 
     @Override
     public Warehouse createWarehouse(WarehouseDTO dto) {
-        Branch branch = branchRepo.findById(dto.getBranchId())
+        Branch branch = branchRepository.findById(dto.getBranchId())
                 .orElseThrow(() -> new RuntimeException("Branch not found"));
 
         Warehouse warehouse = Warehouse.builder()
@@ -30,26 +31,26 @@ public class WarehouseServiceImpl implements WarehouseService {
                 .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
                 .build();
 
-        return warehouseRepo.save(warehouse);
+        return warehouseRepository.save(warehouse);
     }
 
     @Override
     public List<Warehouse> getAll() {
-        return warehouseRepo.findAll();
+        return warehouseRepository.findAll();
     }
 
     @Override
     public Optional<Warehouse> getById(Long id) {
-        return warehouseRepo.findById(id);
+        return warehouseRepository.findById(id);
     }
 
     @Override
     public Warehouse updateWarehouse(Long id, WarehouseDTO dto) {
-        Warehouse warehouse = warehouseRepo.findById(id)
+        Warehouse warehouse = warehouseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Warehouse not found"));
 
         if (dto.getBranchId() != null) {
-            Branch branch = branchRepo.findById(dto.getBranchId())
+            Branch branch = branchRepository.findById(dto.getBranchId())
                     .orElseThrow(() -> new RuntimeException("Branch not found"));
             warehouse.setBranch(branch);
         }
@@ -58,11 +59,13 @@ public class WarehouseServiceImpl implements WarehouseService {
         warehouse.setCode(dto.getCode());
         warehouse.setIsActive(dto.getIsActive());
 
-        return warehouseRepo.save(warehouse);
+        return warehouseRepository.save(warehouse);
     }
 
     @Override
     public void delete(Long id) {
-        warehouseRepo.deleteById(id);
+        warehouseRepository.deleteById(id);
     }
+
+
 }

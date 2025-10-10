@@ -10,4 +10,5 @@ public interface WarehouseService {
     Optional<Warehouse> getById(Long id);
     Warehouse updateWarehouse(Long id, WarehouseDTO dto);
     void delete(Long id);
+
 }

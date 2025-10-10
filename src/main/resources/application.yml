@@ -35,6 +35,9 @@ spring:
       timeout: 60000
       enabled: false
 
+    mongodb:
+      uri: ${MONGO_URI}
+
   sendgrid:
     api-key: ${SENDGRID_API_KEY}
     from-email: ${SENDGRID_FROM_EMAIL}
