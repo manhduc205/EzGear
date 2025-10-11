@@ -9,7 +9,4 @@ public interface CustomerAddressRepository extends JpaRepository<CustomerAddress
     // địa chỉ mặc định của người dùng
     Optional<CustomerAddress> findByUserIdAndIsDefaultTrue(Long userId);
 
-    default Optional<CustomerAddress> findDefaultByUserId(Long userId) {
-        return findByUserIdAndIsDefaultTrue(userId);
-    }
 }

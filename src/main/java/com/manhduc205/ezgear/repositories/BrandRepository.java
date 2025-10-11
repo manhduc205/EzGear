@@ -9,6 +9,5 @@ import java.util.Optional;
 
 @Repository
 public interface BrandRepository extends JpaRepository<Brand, Long> {
-    // tìm chi nhánh theo tỉnh thành
-    Optional<Branch> findByProvince(String province);
+
 }

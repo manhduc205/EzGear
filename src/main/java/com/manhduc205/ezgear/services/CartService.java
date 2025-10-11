@@ -34,12 +34,13 @@ public class CartService {
     }
 
     public Cart addItem(Long userId, CartItem item) {
-        // tồn kho
-        CustomerAddress address = customerAddressRepository.findDefaultByUserId(userId)
+
+        CustomerAddress address = customerAddressRepository.findByUserIdAndIsDefaultTrue(userId)
                 .orElseThrow(() -> new RequestException("Bạn chưa có địa chỉ giao hàng mặc định."));
 
-        // 2. Lấy kho tương ứng với tỉnh/thành
-        Long warehouseId = warehouseService.getWarehouseByProvince(address.getLocationCode());
+        //kho tương ứng với tỉnh/thành
+        Long warehouseId = warehouseService.getWarehouseIdByAddress(address);
+        // tồn kho
         int quantityAvailable = productStockService.getAvailable(item.getSkuId(),warehouseId);
         Cart cart = getCart(userId);
 
@@ -67,10 +68,6 @@ public class CartService {
         }
         // 7️⃣ Nếu chưa có → thêm mới
         else {
-            if (item.getPrice() == null) {
-                // Nếu cần, có thể fetch giá từ ProductSKUService
-//                item.setPrice(productService.getPriceBySkuId(item.getSkuId()));
-            }
             cart.getItems().add(item);
         }
 

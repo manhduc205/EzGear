@@ -3,6 +3,7 @@ package com.manhduc205.ezgear.services.impl;
 import com.manhduc205.ezgear.dtos.WarehouseDTO;
 import com.manhduc205.ezgear.exception.RequestException;
 import com.manhduc205.ezgear.models.Branch;
+import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.models.Warehouse;
 import com.manhduc205.ezgear.repositories.BranchRepository;
 import com.manhduc205.ezgear.repositories.WarehouseRepository;
@@ -65,6 +66,25 @@ public class WarehouseServiceImpl implements WarehouseService {
     @Override
     public void delete(Long id) {
         warehouseRepository.deleteById(id);
+    }
+
+    public Long getWarehouseIdByAddress(CustomerAddress address) {
+        // 1️⃣ Lấy province code (ví dụ "HN", "HCM")
+        String provinceCode = address.getLocationCode();
+        if (provinceCode == null || provinceCode.isEmpty()) {
+            throw new RequestException("Địa chỉ giao hàng chưa có mã tỉnh/thành (locationCode).");
+        }
+
+        // 2️⃣ Tìm chi nhánh theo mã tỉnh
+        Branch branch = branchRepository.findByCode(provinceCode)
+                .orElseThrow(() -> new RequestException("Không tìm thấy chi nhánh cho tỉnh: " + provinceCode));
+
+        // 3️⃣ Tìm kho hoạt động của chi nhánh đó
+        Warehouse warehouse = warehouseRepository.findFirstByBranchIdAndIsActiveTrue(branch.getId())
+                .orElseThrow(() -> new RequestException("Không tìm thấy kho hoạt động cho chi nhánh: " + branch.getName()));
+
+        // 4️⃣ Trả về id
+        return warehouse.getId();
     }
 
 
