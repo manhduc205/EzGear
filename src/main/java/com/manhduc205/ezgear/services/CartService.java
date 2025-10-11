@@ -22,7 +22,6 @@ public class CartService {
     private final ProductStockService productStockService;
     private final WarehouseService warehouseService;
     private final CustomerAddressRepository customerAddressRepository;
-    // không nên sử dụng Vòng for cho tìm kiếm item =>> sử dụng map
     // dùng concurentHashMap an toàn hơn với đa luồng, tránh race condition
     private final Map<Long, Long> warehouseCache = new ConcurrentHashMap<>();
 
@@ -31,7 +30,7 @@ public class CartService {
                 .orElseGet(() -> {
                     Cart newCart = Cart.builder()
                             .userId(userId)
-                            .items(new ConcurrentHashMap<>())
+                            .items(new ArrayList<>())
                             .createdAt(LocalDateTime.now())
                             .updatedAt(LocalDateTime.now())
                             .build();
@@ -51,14 +50,14 @@ public class CartService {
         validateStock(userId, item.getSkuId(), item.getQuantity());
         Cart cart = getCart(userId);
 
-//        CartItem existingItem = null;
-//        for (CartItem it : cart.getItems()) {
-//            if (it.getSkuId().equals(item.getSkuId())) {
-//                existingItem = it;
-//                break;
-//            }
-//        }
-        CartItem existingItem = cart.getItems().get(item.getSkuId());
+        CartItem existingItem = null;
+        for (CartItem it : cart.getItems()) {
+            if (it.getSkuId().equals(item.getSkuId())) {
+                existingItem = it;
+                break;
+            }
+        }
+
 
         int newQuantity = (existingItem != null ? existingItem.getQuantity() : 0) + item.getQuantity();
 
@@ -68,7 +67,7 @@ public class CartService {
             existingItem.setQuantity(newQuantity);
         }
         else {
-            cart.getItems().put(item.getSkuId(), item);
+            cart.getItems().add(item);
         }
 
         cart.setUpdatedAt(LocalDateTime.now());
@@ -79,7 +78,13 @@ public class CartService {
         Cart cart = getCart(userId);
         validateStock(userId, skuId, newQuantity);
 
-        CartItem existingItem = cart.getItems().get(skuId);
+        CartItem existingItem = null;
+        for (CartItem it : cart.getItems()) {
+            if (it.getSkuId().equals(skuId)) {
+                existingItem = it;
+                break;
+            }
+        }
         if (existingItem == null) {
             throw new RequestException("Không tìm thấy sản phẩm trong giỏ hàng.");
         }
@@ -98,7 +103,10 @@ public class CartService {
 //            }
 //        }
 
-        cart.getItems().remove(skuId);
+        boolean removed = cart.getItems().removeIf(i -> skuId.equals(i.getSkuId()));
+        if (!removed) {
+            throw new RequestException("Không tìm thấy sản phẩm trong giỏ hàng.");
+        }
         cart.setUpdatedAt(LocalDateTime.now());
         return cartRepository.save(cart);
     }
