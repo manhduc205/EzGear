@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -20,12 +22,16 @@ public class CartService {
     private final ProductStockService productStockService;
     private final WarehouseService warehouseService;
     private final CustomerAddressRepository customerAddressRepository;
+    // không nên sử dụng Vòng for cho tìm kiếm item =>> sử dụng map
+    // dùng concurentHashMap an toàn hơn với đa luồng, tránh race condition
+    private final Map<Long, Long> warehouseCache = new ConcurrentHashMap<>();
+
     public Cart getCart(Long userId) {
         return cartRepository.findByUserId(userId)
                 .orElseGet(() -> {
                     Cart newCart = Cart.builder()
                             .userId(userId)
-                            .items(new ArrayList<>())
+                            .items(new ConcurrentHashMap<>())
                             .createdAt(LocalDateTime.now())
                             .updatedAt(LocalDateTime.now())
                             .build();
@@ -34,62 +40,65 @@ public class CartService {
     }
 
     public Cart addItem(Long userId, CartItem item) {
-
-        CustomerAddress address = customerAddressRepository.findByUserIdAndIsDefaultTrue(userId)
-                .orElseThrow(() -> new RequestException("Bạn chưa có địa chỉ giao hàng mặc định."));
-
-        //kho tương ứng với tỉnh/thành
-        Long warehouseId = warehouseService.getWarehouseIdByAddress(address);
-        // tồn kho
-        int quantityAvailable = productStockService.getAvailable(item.getSkuId(),warehouseId);
+//
+//        CustomerAddress address = customerAddressRepository.findByUserIdAndIsDefaultTrue(userId)
+//                .orElseThrow(() -> new RequestException("Bạn chưa có địa chỉ giao hàng mặc định."));
+//
+//        //kho tương ứng với tỉnh/thành
+//        Long warehouseId = warehouseService.getWarehouseIdByAddress(address);
+//        // tồn kho
+//        int quantityAvailable = productStockService.getAvailable(item.getSkuId(),warehouseId);
+        validateStock(userId, item.getSkuId(), item.getQuantity());
         Cart cart = getCart(userId);
 
-        CartItem existingItem = null;
-        for (CartItem it : cart.getItems()) {
-            if (it.getSkuId().equals(item.getSkuId())) {
-                existingItem = it;
-                break;
-            }
-        }
+//        CartItem existingItem = null;
+//        for (CartItem it : cart.getItems()) {
+//            if (it.getSkuId().equals(item.getSkuId())) {
+//                existingItem = it;
+//                break;
+//            }
+//        }
+        CartItem existingItem = cart.getItems().get(item.getSkuId());
 
-        // 4️⃣ Tính tổng số lượng sau khi thêm
         int newQuantity = (existingItem != null ? existingItem.getQuantity() : 0) + item.getQuantity();
 
-        // 5️⃣ Kiểm tra vượt tồn kho
-        if (newQuantity > quantityAvailable) {
-            throw new RequestException(
-                    "Không thể thêm sản phẩm, chỉ còn lại " + quantityAvailable + " sản phẩm trong kho."
-            );
-        }
+        validateStock(userId, item.getSkuId(), newQuantity);
 
-        // 6️⃣ Nếu đã có trong giỏ → cập nhật lại số lượng
         if (existingItem != null) {
             existingItem.setQuantity(newQuantity);
         }
-        // 7️⃣ Nếu chưa có → thêm mới
         else {
-            cart.getItems().add(item);
+            cart.getItems().put(item.getSkuId(), item);
         }
 
-        // 8️⃣ Cập nhật thời gian và lưu
         cart.setUpdatedAt(LocalDateTime.now());
         return cartRepository.save(cart);
     }
 
     public Cart updateQuantity(Long userId, Long skuId, int newQuantity) {
         Cart cart = getCart(userId);
-        for (CartItem i : cart.getItems()) {
-            if (i.getSkuId().equals(skuId)) {
-                i.setQuantity(newQuantity);
-            }
+        validateStock(userId, skuId, newQuantity);
+
+        CartItem existingItem = cart.getItems().get(skuId);
+        if (existingItem == null) {
+            throw new RequestException("Không tìm thấy sản phẩm trong giỏ hàng.");
         }
+        existingItem.setQuantity(newQuantity);
         cart.setUpdatedAt(LocalDateTime.now());
         return cartRepository.save(cart);
     }
 
     public Cart removeItem(Long userId, Long skuId) {
         Cart cart = getCart(userId);
-        cart.getItems().removeIf(i -> i.getSkuId().equals(skuId));
+
+//        for (Iterator<CartItem> iterator = cart.getItems().iterator(); iterator.hasNext();) {
+//            CartItem item = iterator.next();
+//            if (item.getSkuId().equals(skuId)) {
+//                iterator.remove();
+//            }
+//        }
+
+        cart.getItems().remove(skuId);
         cart.setUpdatedAt(LocalDateTime.now());
         return cartRepository.save(cart);
     }
@@ -99,6 +108,28 @@ public class CartService {
         cart.getItems().clear();
         cart.setUpdatedAt(LocalDateTime.now());
         cartRepository.save(cart);
+    }
+
+    // ktra tồn kho
+    private void validateStock(Long userId, Long skuId, int quantity) {
+        if (quantity <= 0) return;
+
+        // key chưa tồn tại trong map -> chạy hàm mappingFunction để tính ra value mới và thêm vào map
+        // key tồn tại -> lấy value hiện có, k chạy hàm nữa
+        Long warehouseId = warehouseCache.computeIfAbsent(userId, id -> {
+            CustomerAddress address = customerAddressRepository.findByUserIdAndIsDefaultTrue(id)
+                    .orElseThrow(() -> new RequestException("Bạn chưa có địa chỉ giao hàng mặc định."));
+            return warehouseService.getWarehouseIdByAddress(address);
+        });
+
+        int quantityAvailable = productStockService.getAvailable(skuId, warehouseId);
+        if (quantity > quantityAvailable) {
+            throw new RequestException("Không đủ tồn kho, chỉ còn " + quantityAvailable + " sản phẩm.");
+        }
+    }
+    // xóa cache warehouseId khi user cập nhật lại địa chỉ mặc định
+    public void invalidateWarehouseCache(Long userId) {
+        warehouseCache.remove(userId);
     }
 }
 

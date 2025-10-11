@@ -7,14 +7,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Data
 @Builder
@@ -27,7 +24,7 @@ public class Cart {
 
     private Long userId;
 
-    private List<CartItem> items = new ArrayList<>();
+    private Map<Long, CartItem> items = new ConcurrentHashMap<>();
 
     private LocalDateTime createdAt;
 
