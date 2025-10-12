@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "productstock",
+@Table(name = "product_stock",
         uniqueConstraints = @UniqueConstraint(name = "uk_stock_sku_wh", columnNames = {"sku_id", "warehouse_id"}) // fk trong db
 )
 public class ProductStock {

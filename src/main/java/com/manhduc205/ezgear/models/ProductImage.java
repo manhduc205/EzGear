@@ -10,7 +10,7 @@ import lombok.*;
 @Setter
 @Builder
 @Entity
-@Table(name = "productimages")
+@Table(name = "product_images")
 public class ProductImage {
     public static final int MAXIMUM_IMAGES_PER_PRODUCT = 7;
 

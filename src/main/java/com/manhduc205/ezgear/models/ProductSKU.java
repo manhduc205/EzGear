@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "productskus")
+@Table(name = "product_skus")
 @Builder
 @Entity
 public class ProductSKU extends AbstractEntity {
