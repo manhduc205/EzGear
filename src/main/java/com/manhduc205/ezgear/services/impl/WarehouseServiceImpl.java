@@ -1,7 +1,7 @@
 package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.WarehouseDTO;
-import com.manhduc205.ezgear.exception.RequestException;
+import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.Branch;
 import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.models.Warehouse;

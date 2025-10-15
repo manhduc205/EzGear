@@ -1,11 +1,10 @@
 package com.manhduc205.ezgear.services;
 
-import com.manhduc205.ezgear.exception.RequestException;
+import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.models.cart.Cart;
 import com.manhduc205.ezgear.models.cart.CartItem;
 import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
-import com.manhduc205.ezgear.repositories.WarehouseRepository;
 import com.manhduc205.ezgear.repositories.cart.CartRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

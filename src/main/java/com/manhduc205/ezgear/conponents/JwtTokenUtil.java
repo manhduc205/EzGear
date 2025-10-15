@@ -1,8 +1,5 @@
 package com.manhduc205.ezgear.conponents;
-import com.manhduc205.ezgear.models.Token;
-import com.manhduc205.ezgear.repositories.TokenRepository;
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +15,6 @@ import java.security.Key;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -28,7 +22,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class JwtTokenUtil {
 
-    private final TokenRepository tokenRepository;
 
     @Value("${jwt.accessKey}")
     private String accessKeyBase64;
@@ -62,17 +55,17 @@ public class JwtTokenUtil {
         return buildToken(principal.getUsername(), roles, accessKey, getAccessTokenExpiryDate());
     }
 
-    public boolean validateAccessToken(String token, UserDetails userDetails) {
-        if (!validateToken(token, accessKey)) return false;
-
-        String username = getUsernameFromAccessToken(token);
-        Token existingToken = tokenRepository.findByToken(token).orElse(null);
-        if (existingToken == null || existingToken.isRevoked()) {
-            return false;
-        }
-
-        return username.equals(userDetails.getUsername());
-    }
+//    public boolean validateAccessToken(String token, UserDetails userDetails) {
+//        if (!validateToken(token, accessKey)) return false;
+//
+//        String username = getUsernameFromAccessToken(token);
+//        Token existingToken = tokenRepository.findByToken(token).orElse(null);
+//        if (existingToken == null || existingToken.isRevoked()) {
+//            return false;
+//        }
+//
+//        return username.equals(userDetails.getUsername());
+//    }
 
     public String getUsernameFromAccessToken(String token) {
         return extractClaims(token, accessKey).getSubject();
@@ -92,12 +85,12 @@ public class JwtTokenUtil {
         return buildToken(username, null, refreshKey, getRefreshTokenExpiryDate());
     }
 
-    public boolean validateRefreshToken(String token) {
-        if (!validateToken(token, refreshKey)) return false;
-
-        Token existingToken = tokenRepository.findByToken(token).orElse(null);
-        return existingToken != null && !existingToken.isRevoked();
-    }
+//    public boolean validateRefreshToken(String token) {
+//        if (!validateToken(token, refreshKey)) return false;
+//
+//        Token existingToken = tokenRepository.findByToken(token).orElse(null);
+//        return existingToken != null && !existingToken.isRevoked();
+//    }
 
     public String getUsernameFromRefreshToken(String token) {
         return extractClaims(token, refreshKey).getSubject();
