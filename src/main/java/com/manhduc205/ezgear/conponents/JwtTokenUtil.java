@@ -67,17 +67,17 @@ public class JwtTokenUtil {
 //        return username.equals(userDetails.getUsername());
 //    }
 
-    public String getUsernameFromAccessToken(String token) {
-        return extractClaims(token, accessKey).getSubject();
-    }
-
-    public String getRolesFromAccessToken(String token) {
-        return extractClaims(token, accessKey).get("roles", String.class);
-    }
-
-    public LocalDateTime getAccessTokenExpiry(String token) {
-        return toLocalDateTime(extractClaims(token, accessKey).getExpiration());
-    }
+//    public String getUsernameFromAccessToken(String token) {
+//        return extractClaims(token, accessKey).getSubject();
+//    }
+//
+//    public String getRolesFromAccessToken(String token) {
+//        return extractClaims(token, accessKey).get("roles", String.class);
+//    }
+//
+//    public LocalDateTime getAccessTokenExpiry(String token) {
+//        return toLocalDateTime(extractClaims(token, accessKey).getExpiration());
+//    }
 
     // ================= REFRESH TOKEN =================
 
