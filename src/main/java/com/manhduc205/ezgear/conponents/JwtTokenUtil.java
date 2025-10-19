@@ -112,15 +112,15 @@ public class JwtTokenUtil {
         return builder.compact();
     }
 
-    private boolean validateToken(String token, Key key) {
-        try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException ex) {
-            log.error("Invalid JWT token: {}", ex.getMessage());
-            return false;
-        }
-    }
+//    private boolean validateToken(String token, Key key) {
+//        try {
+//            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+//            return true;
+//        } catch (JwtException | IllegalArgumentException ex) {
+//            log.error("Invalid JWT token: {}", ex.getMessage());
+//            return false;
+//        }
+//    }
 
     private Claims extractClaims(String token, Key key) {
         return Jwts.parserBuilder()
