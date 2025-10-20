@@ -21,9 +21,12 @@ public class RedisService {
         return redisTemplate.opsForValue().get("refresh_token:"+ userId);
     }
 
-    public void deleteToken(Long userId) {
+    public void deleteTokenRefresh(Long userId) {
 
         redisTemplate.delete("refresh_token:"+ userId);
     }
 
+    public void blacklistToken(String token, long expirationMillis) {
+        redisTemplate.opsForValue().set(token, "revoked", expirationMillis, TimeUnit.MILLISECONDS);
+    }
 }

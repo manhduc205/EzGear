@@ -147,4 +147,14 @@ public class JwtTokenUtil {
     public long getRefreshTokenExpiryDuration() {
         return 1000L * 60 * 24 * expiryDay;
     }
+    public Date getAccessTokenExpiry(String accesstoken) {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(accessKey)
+                    .build()
+                    .parseClaimsJws(accesstoken)
+                    .getBody();
+            return claims.getExpiration();
+
+    }
+
 }

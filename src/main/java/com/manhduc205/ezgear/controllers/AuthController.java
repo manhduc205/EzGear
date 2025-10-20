@@ -2,6 +2,7 @@ package com.manhduc205.ezgear.controllers;
 
 import com.manhduc205.ezgear.dtos.UserDTO;
 import com.manhduc205.ezgear.dtos.request.LoginRequest;
+import com.manhduc205.ezgear.dtos.request.LogoutRequest;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.dtos.responses.AuthResponse;
 import com.manhduc205.ezgear.dtos.responses.UserRegisterResponse;
@@ -72,5 +73,11 @@ public class AuthController {
             log.error("Error while creating user : {}", e.getMessage());
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(@RequestBody LogoutRequest logoutRequest) {
+        authService.logout(logoutRequest);
+        return ResponseEntity.ok("Logged out successfully");
     }
 }
