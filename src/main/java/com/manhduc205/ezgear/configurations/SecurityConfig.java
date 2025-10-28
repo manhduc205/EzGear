@@ -70,6 +70,7 @@ public class SecurityConfig {
                         .requestMatchers("/stock-transactions").permitAll()
                         .requestMatchers("/purchase-orders/**").permitAll()
                         .requestMatchers("/cart/**").permitAll()
+                        .requestMatchers("/ghn/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(

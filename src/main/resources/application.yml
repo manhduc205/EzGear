@@ -68,3 +68,16 @@ cloudinary:
   cloud_name: ${CLOUDINARY_CLOUD_NAME}
   api_key: ${CLOUDINARY_API_KEY}
   api_secret: ${CLOUDINARY_API_SECRET}
+
+ghn:
+  env: staging
+  base-url:
+    staging: https://5sao.ghn.dev
+    production: https://online-gateway.ghn.vn/shiip/public-api
+  token:
+    staging: ${GHN_STAGING_TOKEN}
+    production: ""
+  shop-id:
+    staging: ${GHN_STAGING_SHOP_ID}
+    production: ""
+
