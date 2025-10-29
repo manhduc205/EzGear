@@ -72,7 +72,7 @@ cloudinary:
 ghn:
   env: staging
   base-url:
-    staging: https://5sao.ghn.dev
+    staging: https://dev-online-gateway.ghn.vn/shiip/public-api
     production: https://online-gateway.ghn.vn/shiip/public-api
   token:
     staging: ${GHN_STAGING_TOKEN}
