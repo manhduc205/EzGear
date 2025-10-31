@@ -1,8 +1,7 @@
 package com.manhduc205.ezgear.models;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
@@ -20,8 +19,11 @@ public class Branch extends AbstractEntity{
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(name = "province")
-    private String province;
+    // Liên kết đến bảng locations qua location_code
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "location_code", referencedColumnName = "code", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Location location;
 
     @Column(name = "address_line")
     private String addressLine;

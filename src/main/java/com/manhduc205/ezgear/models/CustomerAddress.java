@@ -21,8 +21,9 @@ public class CustomerAddress extends AbstractEntity {
     @Column(name = "receiver_phone", length = 32)
     private String receiverPhone;
 
-    @Column(name = "location_code", length = 20)
-    private String locationCode;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "location_code", referencedColumnName = "code", nullable = false)
+    private Location location;
 
     @Column(name = "address_line")
     private String addressLine;
