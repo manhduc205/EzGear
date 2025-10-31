@@ -34,8 +34,14 @@ public class ProductSKU extends AbstractEntity {
     @Column(name = "barcode")
     private String barcode;
 
-    @Column(length = 50)
-    private String sizeMm;
+    @Column(name = "length_cm")
+    private Integer lengthCm;
+
+    @Column(name = "width_cm")
+    private Integer widthCm;
+
+    @Column(name = "height_cm")
+    private Integer heightCm;
 
     @Column(nullable = false)
     private Boolean isActive = true;

@@ -43,7 +43,9 @@ public class ProductSkuServiceImpl implements ProductSkuService {
                 .price(productSkuDTO.getPrice())
                 .barcode(productSkuDTO.getBarcode())
                 .weightGram(productSkuDTO.getWeightGram())
-                .sizeMm(productSkuDTO.getSizeMm())
+                .lengthCm(productSkuDTO.getLengthCm())
+                .widthCm(productSkuDTO.getWidthCm())
+                .heightCm(productSkuDTO.getHeightCm())
                 .isActive(productSkuDTO.getIsActive())
                 .build();
         return productSkuRepository.save(productSKU);
@@ -64,11 +66,12 @@ public class ProductSkuServiceImpl implements ProductSkuService {
         productSKU.setPrice(productSkuDTO.getPrice());
         productSKU.setBarcode(productSkuDTO.getBarcode());
         productSKU.setWeightGram(productSkuDTO.getWeightGram());
-        productSKU.setSizeMm(productSkuDTO.getSizeMm());
+        productSKU.setLengthCm(productSkuDTO.getLengthCm());
+        productSKU.setWidthCm(productSkuDTO.getWidthCm());
+        productSKU.setHeightCm(productSkuDTO.getHeightCm());
         if (productSkuDTO.getIsActive() != null) {
             productSKU.setIsActive(productSkuDTO.getIsActive());
         }
-
         return productSkuRepository.save(productSKU);
     }
     @Override

@@ -23,6 +23,8 @@ public class ProductSkuDTO {
 
     private String barcode;
     private Integer weightGram;
-    private String sizeMm;
+    private Integer lengthCm;
+    private Integer widthCm;
+    private Integer heightCm;
     private Boolean isActive = true;
 }
