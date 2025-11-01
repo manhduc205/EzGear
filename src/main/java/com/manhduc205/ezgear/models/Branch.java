@@ -22,7 +22,6 @@ public class Branch extends AbstractEntity{
     // Liên kết đến bảng locations qua location_code
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_code", referencedColumnName = "code", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Location location;
 
     @Column(name = "address_line")
