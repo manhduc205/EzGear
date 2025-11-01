@@ -4,6 +4,7 @@ import com.manhduc205.ezgear.dtos.WarehouseDTO;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.Branch;
 import com.manhduc205.ezgear.models.CustomerAddress;
+import com.manhduc205.ezgear.models.Location;
 import com.manhduc205.ezgear.models.Warehouse;
 import com.manhduc205.ezgear.repositories.BranchRepository;
 import com.manhduc205.ezgear.repositories.WarehouseRepository;
@@ -69,22 +70,37 @@ public class WarehouseServiceImpl implements WarehouseService {
     }
 
     public Long getWarehouseIdByAddress(CustomerAddress address) {
-        // 1️⃣ Lấy province code (ví dụ "HN", "HCM")
-        String provinceCode = address.getLocationCode();
-        if (provinceCode == null || provinceCode.isEmpty()) {
-            throw new RequestException("Địa chỉ giao hàng chưa có mã tỉnh/thành (locationCode).");
+        if (address == null || address.getLocation() == null) {
+            throw new RequestException("Địa chỉ giao hàng không hợp lệ hoặc thiếu thông tin địa giới.");
         }
 
-        // 2️⃣ Tìm chi nhánh theo mã tỉnh
-        Branch branch = branchRepository.findByCode(provinceCode)
-                .orElseThrow(() -> new RequestException("Không tìm thấy chi nhánh cho tỉnh: " + provinceCode));
+        // 1️⃣ Lấy ra location hiện tại (phường/xã)
+        Location location = address.getLocation();
 
-        // 3️⃣ Tìm kho hoạt động của chi nhánh đó
+        // 2️⃣ Truy ngược lên tỉnh/thành phố
+        Location province = findParentProvince(location);
+        if (province == null) {
+            throw new RequestException("Không tìm thấy tỉnh/thành cho địa chỉ này.");
+        }
+
+        // 3️⃣ Tìm chi nhánh thuộc tỉnh đó
+        Branch branch = branchRepository.findByLocationCode(province.getCode())
+                .orElseThrow(() -> new RequestException("Không tìm thấy chi nhánh cho tỉnh: " + province.getName()));
+
+        // 4️⃣ Lấy kho đang hoạt động thuộc chi nhánh
         Warehouse warehouse = warehouseRepository.findFirstByBranchIdAndIsActiveTrue(branch.getId())
-                .orElseThrow(() -> new RequestException("Không tìm thấy kho hoạt động cho chi nhánh: " + branch.getName()));
+                .orElseThrow(() -> new RequestException("Không có kho hoạt động thuộc chi nhánh: " + branch.getName()));
 
-        // 4️⃣ Trả về id
         return warehouse.getId();
+    }
+
+    /**
+     * 🔹 Truy ngược cấp tỉnh (PROVINCE) từ một location bất kỳ
+     */
+    private Location findParentProvince(Location loc) {
+        if (loc == null) return null;
+        if (loc.getLevel() == Location.Level.PROVINCE) return loc;
+        return findParentProvince(loc.getParent());
     }
 
 
