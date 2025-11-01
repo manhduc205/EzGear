@@ -49,7 +49,7 @@ public class ShippingFeeCalculatorService {
         Location toWard = findWard(addressLocation);
 
         if (fromDistrict == null || toDistrict == null || toWard == null) {
-            throw new RuntimeException("Invalid GHN location hierarchy: missing district or ward");
+            throw new RuntimeException("Invaliid GHN location hierarchy: missng district or ward");
         }
 
         // Lấy thông tin sản phẩm
