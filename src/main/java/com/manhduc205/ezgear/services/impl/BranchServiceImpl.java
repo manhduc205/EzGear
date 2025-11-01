@@ -2,7 +2,9 @@ package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.BranchDTO;
 import com.manhduc205.ezgear.models.Branch;
+import com.manhduc205.ezgear.models.Location;
 import com.manhduc205.ezgear.repositories.BranchRepository;
+import com.manhduc205.ezgear.repositories.LocationRepository;
 import com.manhduc205.ezgear.services.BranchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,13 +17,16 @@ import java.util.Optional;
 public class BranchServiceImpl implements BranchService {
 
     private final BranchRepository branchRepo;
+    private final LocationRepository locationRepo;
 
     @Override
     public Branch createBranch(BranchDTO dto) {
+        Location location = locationRepo.findById(dto.getLocationCode())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy mã Location"));
         Branch branch = Branch.builder()
                 .code(dto.getCode())
                 .name(dto.getName())
-                .province(dto.getProvince())
+                .location(location)
                 .addressLine(dto.getAddressLine())
                 .phone(dto.getPhone())
                 .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
@@ -44,11 +49,19 @@ public class BranchServiceImpl implements BranchService {
         Branch branch = branchRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Branch not found"));
 
-        branch.setName(dto.getName());
-        branch.setProvince(dto.getProvince());
-        branch.setAddressLine(dto.getAddressLine());
-        branch.setPhone(dto.getPhone());
-        branch.setIsActive(dto.getIsActive());
+        if (dto.getName() != null)
+            branch.setName(dto.getName());
+        if (dto.getLocationCode() != null) {
+            Location location = locationRepo.findById(dto.getLocationCode())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy Location với mã: " + dto.getLocationCode()));
+            branch.setLocation(location);
+        }
+        if (dto.getAddressLine() != null)
+            branch.setAddressLine(dto.getAddressLine());
+        if (dto.getPhone() != null)
+            branch.setPhone(dto.getPhone());
+        if (dto.getIsActive() != null)
+            branch.setIsActive(dto.getIsActive());
 
         return branchRepo.save(branch);
     }

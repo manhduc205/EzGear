@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface BranchRepository extends JpaRepository<Branch,Long> {
     // tìm chi nhánh theo tỉnh thành
-    Optional<Branch> findByCode(String code);
+    Optional<Branch> findByLocationCode(String code);
 }

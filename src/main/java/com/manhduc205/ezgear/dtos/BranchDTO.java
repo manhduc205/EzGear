@@ -11,7 +11,7 @@ public class BranchDTO {
     private Long id;
     private String code;
     private String name;
-    private String province;
+    private Integer locationCode;
     private String addressLine;
     private String phone;
     private Boolean isActive;
