@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/customer-addresses")
+@RequestMapping("/customer-addresses")
 @RequiredArgsConstructor
 public class CustomerAddressController {
 
