@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/ghn")
+@RequestMapping("/ghn/location")
 @RequiredArgsConstructor
 public class GhnMasterDataController {
 
