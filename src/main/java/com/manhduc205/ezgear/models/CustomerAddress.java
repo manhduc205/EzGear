@@ -28,6 +28,9 @@ public class CustomerAddress extends AbstractEntity {
     @Column(name = "address_line")
     private String addressLine;
 
+    @Column(name = "label") // Nhà riêng / Văn phòng
+    private String label;
+
     @Column(name = "is_default")
     private Boolean isDefault = false;
 }

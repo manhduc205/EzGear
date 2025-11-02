@@ -76,8 +76,8 @@ ghn:
     production: https://online-gateway.ghn.vn/shiip/public-api
   token:
     staging: ${GHN_STAGING_TOKEN}
-    production: ""
+    production: ${GHN_PRODUCTION_TOKEN}
   shop-id:
     staging: ${GHN_STAGING_SHOP_ID}
-    production: ""
+    production: ${GHN_PRODUCTION_SHOP_ID}
 
