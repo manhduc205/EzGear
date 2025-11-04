@@ -5,6 +5,7 @@ import com.manhduc205.ezgear.models.Branch;
 import com.manhduc205.ezgear.services.BranchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.List;
 public class BranchController {
 
     private final BranchService branchService;
-
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     @PostMapping
     public ResponseEntity<Branch> create(@RequestBody BranchDTO dto) {
         return ResponseEntity.ok(branchService.createBranch(dto));
@@ -33,11 +34,13 @@ public class BranchController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Branch> update(@PathVariable Long id, @RequestBody BranchDTO dto) {
         return ResponseEntity.ok(branchService.updateBranch(id, dto));
     }
 
+    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         branchService.delete(id);

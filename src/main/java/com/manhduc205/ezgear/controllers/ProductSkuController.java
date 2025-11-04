@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class ProductSkuController {
     private final ProductSkuService productSkuService;
 
-
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping("")
     public ResponseEntity<?> createProductSku (@Valid @RequestBody ProductSkuDTO productSkuDTO, BindingResult result) {
         ProductSKU productSKU = productSkuService.createProductSku(productSkuDTO);
@@ -30,6 +31,8 @@ public class ProductSkuController {
                         .build()
         );
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping("/{id}")
     public ResponseEntity<?> updateProductSku (@Valid @RequestBody ProductSkuDTO productSkuDTO, @PathVariable Long id){
         ProductSKU productSKU = productSkuService.updateProductSku(id,productSkuDTO);
@@ -41,6 +44,8 @@ public class ProductSkuController {
                         .build()
         );
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteProductSku(@PathVariable Long id) {
         productSkuService.deleteProductSku(id);
@@ -49,6 +54,7 @@ public class ProductSkuController {
                 .message("Delete SKU successfully")
                 .build());
     }
+
 
     @PostMapping("/search")
     public ResponseEntity<?> searchProductSku (@Valid @RequestBody ProductSkuSearchRequest request) {

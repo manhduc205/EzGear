@@ -4,6 +4,7 @@ import com.manhduc205.ezgear.dtos.StockTransactionReportDTO;
 import com.manhduc205.ezgear.services.StockTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/stock-transactions")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
 public class StockTransactionController {
 
     private final StockTransactionService stockTransactionService;

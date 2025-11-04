@@ -20,7 +20,7 @@ import java.util.List;
 public class BrandController {
     private final BrandService brandService;
 
-//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PostMapping("")
     public ResponseEntity<?> createBrand(@Valid @RequestBody BrandDTO brandDTO, BindingResult bindingResult) {
         try {
@@ -55,7 +55,7 @@ public class BrandController {
                 .payload(brands)
                 .build());
     }
-//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateBrand(@PathVariable("id") Long id, @RequestBody BrandDTO brandDTO) {
         Brand brand = brandService.updateBrand(id, brandDTO);
@@ -65,7 +65,7 @@ public class BrandController {
                 .build());
     }
 
-//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteBrand(@PathVariable("id") Long id) {
         try {

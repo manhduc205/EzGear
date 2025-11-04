@@ -4,15 +4,16 @@ import com.manhduc205.ezgear.dtos.ProductStockDTO;
 import com.manhduc205.ezgear.services.ProductStockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/stocks")
 @RestController
 @RequiredArgsConstructor
 public class ProducStockController {
-
     private final ProductStockService productStockService;
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
     @PostMapping("/adjust")
     public ResponseEntity<?> adjustStock(@RequestBody ProductStockDTO productStockDTO, @RequestParam int delta) {
         return ResponseEntity.ok(productStockService.adjustStock(productStockDTO, delta));

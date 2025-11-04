@@ -75,7 +75,7 @@ public class ProductController {
                     .build());
         }
     }
-//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateProduct(@PathVariable("id") Long id,
                                            @RequestBody ProductDTO productDTO){
@@ -92,7 +92,7 @@ public class ProductController {
                     .build());
         }
     }
-//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteProductById(@PathVariable("id") Long id) {
         try {
@@ -131,13 +131,13 @@ public class ProductController {
 //
 //        return uniqueFilename;
 //    }
-
-    // hàm kiểm tra xem có đúng định dạng file ảnh hay không
-    private boolean isImageFile(MultipartFile file) {
-        String contentType = file.getContentType();
-        return contentType != null && contentType.startsWith("image/");
-    }
-//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+//
+//    // hàm kiểm tra xem có đúng định dạng file ảnh hay không
+//    private boolean isImageFile(MultipartFile file) {
+//        String contentType = file.getContentType();
+//        return contentType != null && contentType.startsWith("image/");
+//    }
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PostMapping(
             value = "/uploads/{id}",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
@@ -223,7 +223,7 @@ public class ProductController {
         }
     }
 
-//    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
     @PostMapping("/generate-faceker-products")
     public ResponseEntity<?> generateFacekerProducts() throws Exception {
         Faker faker = new Faker(new Locale("vi"));
