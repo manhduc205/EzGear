@@ -38,16 +38,16 @@ public class User extends AbstractEntity implements UserDetails {
     private java.time.LocalDateTime lastLoginAt;
 
     // mapping to userrole
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true,fetch = FetchType.EAGER)
     private Set<UserRole> userRoles = new HashSet<>();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-//        List<SimpleGrantedAuthority> authoritiesList = new ArrayList<>();
-//        authoritiesList.add(new SimpleGrantedAuthority("ROLE_" + getR.toUpperCase()));
-//        return authoritiesList;
-        return userRoles.stream().map(u -> new SimpleGrantedAuthority(u.getRole().getName().toUpperCase())).toList();
+        return userRoles.stream()
+                .map(u -> new SimpleGrantedAuthority("ROLE_" + u.getRole().getCode().toUpperCase()))
+                .toList();
     }
+
 
     @Override
     public String getPassword() {

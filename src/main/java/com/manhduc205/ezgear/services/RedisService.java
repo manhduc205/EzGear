@@ -26,7 +26,4 @@ public class RedisService {
         redisTemplate.delete("refresh_token:"+ userId);
     }
 
-    public void blacklistToken(String token, long expirationMillis) {
-        redisTemplate.opsForValue().set(token, "revoked", expirationMillis, TimeUnit.MILLISECONDS);
-    }
 }
