@@ -9,6 +9,7 @@ import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.User;
 import com.manhduc205.ezgear.repositories.UserRepository;
 import com.manhduc205.ezgear.services.AuthService;
+import com.manhduc205.ezgear.services.BlacklistService;
 import com.manhduc205.ezgear.services.RedisService;
 import com.manhduc205.ezgear.services.UserService;
 import com.manhduc205.ezgear.utils.TokenType;
@@ -39,6 +40,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final RedisService  redisService;
+    private final BlacklistService blacklistService;
 
     //Trong môi trường thực tế, nên sử dụng Authorization Server
     // chuyên dụng như Keycloak, Auth0, hoặc các nền tảng IDaaS.
@@ -101,7 +103,7 @@ public class AuthServiceImpl implements AuthService {
                 Date exp = jwtTokenUtil.getAccessTokenExpiry(accessToken);
                 long ttl = exp.getTime() - System.currentTimeMillis();
                 if (ttl > 0) {
-                    redisService.blacklistToken(accessToken,ttl);
+                    blacklistService.addToBlacklist(accessToken,ttl);
                     log.info("Access token blacklisted for {} ms", ttl);
                 }
                 else {
