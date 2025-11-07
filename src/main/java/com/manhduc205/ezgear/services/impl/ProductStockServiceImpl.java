@@ -1,6 +1,7 @@
 package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
+import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.models.ProductStock;
 import com.manhduc205.ezgear.models.Warehouse;
@@ -10,7 +11,9 @@ import com.manhduc205.ezgear.repositories.WarehouseRepository;
 import com.manhduc205.ezgear.services.ProductStockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -55,5 +58,17 @@ public class ProductStockServiceImpl implements ProductStockService {
         Optional<ProductStock> productStock = productStockRepository.findByProductSkuIdAndWarehouseId(skuId,warehouseId);
          return productStock.map(stock -> stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock())
                 .orElse(0);
+    }
+
+    @Override
+    @Transactional
+    public void reduceStock(List<CartItemRequest> cartItems, Long orderId) {
+        for (CartItemRequest item : cartItems) {
+            ProductStockDTO dto = ProductStockDTO.builder()
+                    .skuId(item.getSkuId())
+                    .warehouseId(1L)
+                    .build();
+            adjustStock(dto, -item.getQuantity());
+        }
     }
 }
