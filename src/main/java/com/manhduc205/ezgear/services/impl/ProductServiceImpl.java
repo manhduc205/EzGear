@@ -2,21 +2,30 @@ package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
+import com.manhduc205.ezgear.dtos.request.CartItemRequest;
+import com.manhduc205.ezgear.dtos.request.CheckoutRequest;
+import com.manhduc205.ezgear.dtos.responses.OrderResponse;
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.mapper.ProductMapper;
 import com.manhduc205.ezgear.models.Brand;
 import com.manhduc205.ezgear.models.Category;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductImage;
+import com.manhduc205.ezgear.models.order.Order;
 import com.manhduc205.ezgear.repositories.BrandRepository;
 import com.manhduc205.ezgear.repositories.CategoryRepository;
 import com.manhduc205.ezgear.repositories.ProductImageRepository;
 import com.manhduc205.ezgear.repositories.ProductRepository;
 import com.manhduc205.ezgear.services.CategoryService;
 import com.manhduc205.ezgear.services.ProductService;
+import com.manhduc205.ezgear.services.ProductStockService;
+import com.manhduc205.ezgear.services.PromotionService;
+import com.manhduc205.ezgear.services.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -114,6 +123,5 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new DataNotFoundException("Product image not found with id = " + imageId));
 
     }
-
 
 }
