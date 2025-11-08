@@ -42,19 +42,15 @@ public class CustomerAddressController {
 
     // Lấy danh sách địa chỉ của user hiện tại
     @GetMapping
-    public ResponseEntity<?> getAllAddresses(
-            @AuthenticationPrincipal CustomUserDetails user
-    ) {
+    public ResponseEntity<?> getAllAddresses(@AuthenticationPrincipal CustomUserDetails user) {
+
         List<CustomerAddress> addresses = customerAddressService.getAllByUserId(user.getId());
         return ResponseEntity.ok(addresses);
     }
 
     //Xóa địa chỉ
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteAddress(
-            @AuthenticationPrincipal CustomUserDetails user,
-            @PathVariable Long id
-    ) {
+    public ResponseEntity<?> deleteAddress(@AuthenticationPrincipal CustomUserDetails user, @PathVariable Long id) {
         customerAddressService.deleteAddress(user.getId(), id);
         return ResponseEntity.noContent().build();
     }
