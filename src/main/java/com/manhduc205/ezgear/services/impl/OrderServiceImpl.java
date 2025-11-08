@@ -21,17 +21,13 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepo;
 
-    /**
-     * 🧾 Tạo đơn hàng mới từ OrderRequest.
-     * Lưu Order + OrderItem vào DB.
-     */
     @Override
     @Transactional
     public Order createOrder(OrderRequest request) {
 
         String orderCode = generateOrderCode();
 
-        // 1️⃣ Tạo Order entity
+        // Order entity
         Order order = Order.builder()
                 .code(orderCode)
                 .userId(request.getUserId())
@@ -46,7 +42,6 @@ public class OrderServiceImpl implements OrderService {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        // 2️⃣ Map danh sách OrderItem từ request
         List<OrderItem> items = request.getItems().stream()
                 .map(i -> OrderItem.builder()
                         .skuId(i.getSkuId())
@@ -61,15 +56,12 @@ public class OrderServiceImpl implements OrderService {
 
         order.setItems(items);
 
-        // 3️⃣ Lưu Order + Items
+        // Lưu Order + Items
         return orderRepo.save(order);
     }
 
-    /**
-     * 🔢 Sinh mã đơn hàng ngẫu nhiên, ví dụ: EZ1730965276-7F3D2
-     */
     private String generateOrderCode() {
-        return "EZ" + System.currentTimeMillis() + "-" +
+        return System.currentTimeMillis() +
                 UUID.randomUUID().toString().substring(0, 5).toUpperCase();
     }
 }
