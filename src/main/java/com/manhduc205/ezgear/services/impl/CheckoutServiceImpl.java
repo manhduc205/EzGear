@@ -6,6 +6,7 @@ import com.manhduc205.ezgear.dtos.request.OrderItemRequest;
 import com.manhduc205.ezgear.dtos.request.OrderRequest;
 import com.manhduc205.ezgear.dtos.responses.OrderResponse;
 import com.manhduc205.ezgear.models.order.Order;
+import com.manhduc205.ezgear.services.CheckoutService;
 import com.manhduc205.ezgear.services.OrderService;
 import com.manhduc205.ezgear.services.ProductStockService;
 import com.manhduc205.ezgear.services.PromotionService;
@@ -17,7 +18,7 @@ import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
-public class CheckoutService {
+public class CheckoutServiceImpl implements CheckoutService {
 
     private final ProductStockService stockService;
     private final PromotionService promotionService;
