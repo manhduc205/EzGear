@@ -1,6 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
-import com.manhduc205.ezgear.dtos.request.PaymentResultRequest;
+
 import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 import com.manhduc205.ezgear.dtos.responses.VNPayResponse;
 import com.manhduc205.ezgear.models.order.Order;
@@ -40,7 +40,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public VNPayResponse createPayment(ProductPaymentRequest req) {
+    public VNPayResponse createPaymentVNPay(ProductPaymentRequest req) {
         // 1. Kiểm tra đơn hàng tồn tại
         Order order = orderRepository.findByCode(req.getOrderCode())
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -114,16 +114,11 @@ public class PaymentServiceImpl implements PaymentService {
         String signData = VnPayUtil.buildQuery(fields);
         String expectedHash = VnPayUtil.hmacSHA512(hashSecret, signData);
 
-        System.out.println("=== VNPay Signature Debug ===");
-        System.out.println("Raw query : " + signData);
-        System.out.println("Expected  : " + expectedHash);
-        System.out.println("Received  : " + vnp_SecureHash);
 
         if (!expectedHash.equalsIgnoreCase(vnp_SecureHash)) {
             return "INVALID_SIGNATURE";
         }
 
-        // Nếu ok, xử lý order
         String txnRef = fields.get("vnp_TxnRef");
         String responseCode = fields.get("vnp_ResponseCode");
 
@@ -146,5 +141,28 @@ public class PaymentServiceImpl implements PaymentService {
 
         return "OK";
     }
+
+    // Thanh toán COD
+    @Override
+    @Transactional
+    public void createCodPayment(ProductPaymentRequest req) {
+        Order order = orderRepository.findByCode(req.getOrderCode())
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        if ("PAID".equals(order.getPaymentStatus())) {
+            throw new RuntimeException("Order already paid");
+        }
+
+        Payment payment = Payment.builder()
+                .order(order)
+                .method("COD")
+                .amount(BigDecimal.valueOf(req.getAmount()))
+                .status("PENDING")
+                .build();
+        paymentRepository.save(payment);
+
+        order.setPaymentStatus("PENDING");
+        orderRepository.save(order);
+    }
+
 
 }

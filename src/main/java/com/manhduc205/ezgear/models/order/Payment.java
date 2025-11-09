@@ -32,7 +32,7 @@ public class Payment {
     @Column(length = 50)
     private String status; // PENDING, SUCCESS, FAILED, REFUND
 
-    @Column(name = "vnp_txn_ref", nullable = false, length = 100, unique = true)
+    @Column(name = "vnp_txn_ref", unique = true)
     private String vnpTxnRef;
 
     @Column(name = "provider_txn_id", length = 255)

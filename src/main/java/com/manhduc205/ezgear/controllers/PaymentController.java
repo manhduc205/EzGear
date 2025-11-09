@@ -1,6 +1,5 @@
 package com.manhduc205.ezgear.controllers;
 
-import com.manhduc205.ezgear.dtos.request.PaymentResultRequest;
 import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 
 import com.manhduc205.ezgear.dtos.responses.VNPayResponse;
@@ -17,9 +16,15 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
+    @PostMapping("/cod")
+    public ResponseEntity<String> createCodPayment(@RequestBody ProductPaymentRequest req) {
+        paymentService.createCodPayment(req);
+        return ResponseEntity.ok("COD payment created successfully");
+    }
+
     @PostMapping("/vnpay/create")
-    public ResponseEntity<VNPayResponse> createPayment(@RequestBody ProductPaymentRequest req) {
-        return ResponseEntity.ok(paymentService.createPayment(req));
+    public ResponseEntity<VNPayResponse> createPaymentVNPay(@RequestBody ProductPaymentRequest req) {
+        return ResponseEntity.ok(paymentService.createPaymentVNPay(req));
     }
 
     @GetMapping("/vnpay/return")

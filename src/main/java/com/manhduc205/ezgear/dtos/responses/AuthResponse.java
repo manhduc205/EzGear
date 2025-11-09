@@ -1,7 +1,7 @@
 package com.manhduc205.ezgear.dtos.responses;
 
 
-import com.manhduc205.ezgear.utils.TokenType;
+import com.manhduc205.ezgear.enums.TokenType;
 import lombok.Builder;
 import lombok.Data;
 
