@@ -74,6 +74,7 @@ public class SecurityConfig {
                         .requestMatchers("/cart/**").permitAll()
                         .requestMatchers("/ghn/**").permitAll()
                         .requestMatchers("/customer-addresses/**").permitAll()
+                        .requestMatchers("/payment/vnpay/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
