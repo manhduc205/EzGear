@@ -52,9 +52,9 @@ jwt:
 
 springdoc:
   swagger-ui:
-    path: /swagger-ui.html   # custom path, v� d?: /docs, /swagger, /api-docs-ui
-    operationsSorter: method # s?p x?p API theo method (GET, POST,...)
-    tagsSorter: alpha        # s?p x?p tags theo alphabet
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
   api-docs:
     path: /v3/api-docs       # custom path cho OpenAPI JSON
 
@@ -80,4 +80,16 @@ ghn:
   shop-id:
     staging: ${GHN_STAGING_SHOP_ID}
     production: ${GHN_PRODUCTION_SHOP_ID}
+vnpay:
+  tmnCode: 2NXP4AJZ           # mã merchant VNPay cấp
+  hashSecret: 98TOBQT0FCTVIBL19AU4ANDOWOYL1FUO     # chuỗi bí mật dùng để ký
+  payUrl: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  returnUrl: http://localhost:8080/api/payment/vnpay/return
+  callbackUrl: http://localhost:8080/api/payment/vnpay/callback
 
+
+#  Ngân hàng	NCB
+#  Số thẻ	9704198526191432198
+#  Tên chủ thẻ	NGUYEN VAN A
+#  Ngày phát hành	07/15
+#  Mật khẩu OTP	123456

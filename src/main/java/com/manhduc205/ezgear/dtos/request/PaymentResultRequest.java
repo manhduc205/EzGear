@@ -12,4 +12,5 @@ public class PaymentResultRequest {
     private String vnp_TransactionNo;
     private String vnp_TxnRef;
     private String vnp_SecureHash;
+    private String vnp_TransactionStatus;
 }

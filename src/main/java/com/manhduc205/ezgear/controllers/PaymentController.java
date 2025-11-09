@@ -5,6 +5,7 @@ import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 
 import com.manhduc205.ezgear.dtos.responses.VNPayResponse;
 import com.manhduc205.ezgear.services.PaymentService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,8 +23,8 @@ public class PaymentController {
     }
 
     @GetMapping("/vnpay/return")
-    public ResponseEntity<String> VNPayResult(PaymentResultRequest req) {
-        String result = paymentService.handleVnPayCallback(req);
+    public ResponseEntity<String> VNPayResult(HttpServletRequest request) {
+        String result = paymentService.handleVnPayCallback(request);
         return ResponseEntity.ok(result);
     }
 }
