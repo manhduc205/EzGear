@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface BranchService {
     Branch createBranch(BranchDTO dto);
-    List<Branch> getAll();
+    List<BranchDTO> getAll();
     Optional<Branch> getById(Long id);
     Branch updateBranch(Long id, BranchDTO dto);
     void delete(Long id);

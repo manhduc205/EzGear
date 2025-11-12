@@ -37,9 +37,18 @@ public class WarehouseServiceImpl implements WarehouseService {
     }
 
     @Override
-    public List<Warehouse> getAll() {
-        return warehouseRepository.findAll();
+    public List<WarehouseDTO> getAll() {
+        return warehouseRepository.findAll().stream()
+                .map(w -> WarehouseDTO.builder()
+                        .id(w.getId())
+                        .branchId(w.getBranch() != null ? w.getBranch().getId() : null)
+                        .code(w.getCode())
+                        .name(w.getName())
+                        .isActive(w.getIsActive())
+                        .build())
+                .toList();
     }
+
 
     @Override
     public Optional<Warehouse> getById(Long id) {
@@ -74,29 +83,26 @@ public class WarehouseServiceImpl implements WarehouseService {
             throw new RequestException("Địa chỉ giao hàng không hợp lệ hoặc thiếu thông tin địa giới.");
         }
 
-        // 1️⃣ Lấy ra location hiện tại (phường/xã)
+        // Lấy ra location hiện tại (phường/xã)
         Location location = address.getLocation();
 
-        // 2️⃣ Truy ngược lên tỉnh/thành phố
+        // Truy ngược lên tỉnh/thành phố
         Location province = findParentProvince(location);
         if (province == null) {
             throw new RequestException("Không tìm thấy tỉnh/thành cho địa chỉ này.");
         }
 
-        // 3️⃣ Tìm chi nhánh thuộc tỉnh đó
+        // Tìm chi nhánh thuộc tỉnh đó
         Branch branch = branchRepository.findByLocationCode(province.getCode())
                 .orElseThrow(() -> new RequestException("Không tìm thấy chi nhánh cho tỉnh: " + province.getName()));
 
-        // 4️⃣ Lấy kho đang hoạt động thuộc chi nhánh
+        //Lấy kho đang hoạt động thuộc chi nhánh
         Warehouse warehouse = warehouseRepository.findFirstByBranchIdAndIsActiveTrue(branch.getId())
                 .orElseThrow(() -> new RequestException("Không có kho hoạt động thuộc chi nhánh: " + branch.getName()));
 
         return warehouse.getId();
     }
 
-    /**
-     * 🔹 Truy ngược cấp tỉnh (PROVINCE) từ một location bất kỳ
-     */
     private Location findParentProvince(Location loc) {
         if (loc == null) return null;
         if (loc.getLevel() == Location.Level.PROVINCE) return loc;

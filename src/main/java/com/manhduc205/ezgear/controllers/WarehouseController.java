@@ -24,7 +24,7 @@ public class WarehouseController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Warehouse>> getAll() {
+    public ResponseEntity<List<WarehouseDTO>> getAll() {
         return ResponseEntity.ok(warehouseService.getAll());
     }
 
