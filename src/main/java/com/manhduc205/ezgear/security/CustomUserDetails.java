@@ -33,22 +33,22 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return true; // hoặc user.isExpired() == false;
+        return true;
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return true; // hoặc user.isLocked() == false;
+        return true;
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return true; // hoặc user.isCredentialExpired() == false;
+        return true;
     }
 
     @Override
     public boolean isEnabled() {
-        return true; // hoặc user.isActive();
+        return true;
     }
 
     public Long getId() {

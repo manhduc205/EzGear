@@ -1,6 +1,7 @@
 package com.manhduc205.ezgear.services;
 
 import com.manhduc205.ezgear.repositories.UserRepository;
+import com.manhduc205.ezgear.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -16,6 +17,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         return userRepository.findByEmail(email)
+                .map(user -> new CustomUserDetails(user, new java.util.HashSet<>(user.getAuthorities())))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
     }
 }

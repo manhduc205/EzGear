@@ -71,7 +71,6 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/cart/**").permitAll()
                         .requestMatchers("/ghn/**").permitAll()
                         .requestMatchers("/customer-addresses/**").permitAll()
                         .requestMatchers("/payment/**").permitAll()
