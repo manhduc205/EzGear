@@ -13,20 +13,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class StockTransactionReportDTO {
-    private String imageUrl;
-    private String productVariant;   // tên + option
-    private String sku;
-    private String barcode;
-    private LocalDateTime time;
-    private Integer quantity;
-
-    private Integer reserved;        // từ ProductStock.qty_reserved
-    private Integer buffer;          // từ ProductStock.safety_stock
-    private Integer available;       // qty_on_hand - qty_reserved - safety_stock
-
-    private BigDecimal purchasePrice; // từ PO hoặc ref_id
-    private BigDecimal retailPrice;   // từ ProductSKU.price
-
-    private String agent;            // từ AuditLog.actor_id → Users.name
+    private String imageUrl;         // URL ảnh sản phẩm
+    private String productVariant;   // Tên sản phẩm + option
+    private String sku;              // Mã SKU
+    private String warehouseName;    // Tên kho
+    private String transactionType;  // Nhập kho / Xuất kho / Điều chỉnh
+    private LocalDateTime time;      // Thời gian giao dịch
+    private Integer quantity;        // Số lượng thay đổi (+/-)
+    private Integer stockAfter;      // Tồn sau giao dịch
+    private BigDecimal purchasePrice;// Giá nhập
+    private BigDecimal retailPrice;  // Giá bán
+    private String agent;            // Người thực hiện
 }
 

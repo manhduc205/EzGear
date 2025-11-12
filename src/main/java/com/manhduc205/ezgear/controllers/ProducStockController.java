@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RequestMapping("/stocks")
 @RestController
 @RequiredArgsConstructor
@@ -24,5 +26,11 @@ public class ProducStockController {
     public ResponseEntity<?> availableStock(@RequestParam Long skuId, @RequestParam Long warehouseId) {
         int available = productStockService.getAvailable(skuId, warehouseId);
         return ResponseEntity.ok(available);
+    }
+
+    @GetMapping("")
+    public ResponseEntity<List<ProductStockDTO>> getAllStock() {
+        List<ProductStockDTO> stocks = productStockService.getAllStock();
+        return ResponseEntity.ok(stocks);
     }
 }

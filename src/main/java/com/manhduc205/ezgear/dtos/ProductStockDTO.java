@@ -15,5 +15,5 @@ public class ProductStockDTO {
     private Integer qtyOnHand;
     private Integer qtyReserved;
     private Integer safetyStock;
-
+    private Integer available;
 }

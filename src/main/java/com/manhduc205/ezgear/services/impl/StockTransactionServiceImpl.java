@@ -3,7 +3,6 @@ package com.manhduc205.ezgear.services.impl;
 import com.manhduc205.ezgear.dtos.StockTransactionReportDTO;
 import com.manhduc205.ezgear.models.*;
 import com.manhduc205.ezgear.repositories.*;
-import com.manhduc205.ezgear.services.ProductService;
 import com.manhduc205.ezgear.services.StockTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,48 +13,73 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class StockTransactionServiceImpl implements StockTransactionService {
+
     private final StockTransactionRepository stockTransactionRepository;
-    private final ProductStockRepository productStockRepository;
     private final ProductSkuRepository productSkuRepository;
+    private final WarehouseRepository warehouseRepository;
     private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
+
     @Override
     public List<StockTransactionReportDTO> getTransactionReports(Long skuId, Long warehouseId) {
         List<StockTransaction> transactions;
+
         if (skuId != null && warehouseId != null) {
             transactions = stockTransactionRepository.findBySkuIdAndWarehouseId(skuId, warehouseId);
+        } else if (skuId != null) {
+            transactions = stockTransactionRepository.findBySkuId(skuId);
+        } else if (warehouseId != null) {
+            transactions = stockTransactionRepository.findByWarehouseId(warehouseId);
         } else {
             transactions = stockTransactionRepository.findAll();
         }
+
         return transactions.stream().map(tx -> {
             ProductSKU sku = productSkuRepository.findById(tx.getSkuId()).orElse(null);
-            ProductStock stock = productStockRepository.findByProductSkuIdAndWarehouseId(
-                    tx.getSkuId(), tx.getWarehouseId()).orElse(null);
+            Warehouse warehouse = warehouseRepository.findById(tx.getWarehouseId()).orElse(null);
+
+            // Lấy người thực hiện
             AuditLog audit = auditLogRepository.findTopByEntityTypeAndEntityIdOrderByCreatedAtDesc(
                     "StockTransaction", tx.getId());
-            String imageUrl = sku.getProduct().getImageUrl();
-
             String agent = audit != null
                     ? userRepository.findById(audit.getActorId()).map(User::getUsername).orElse("System")
                     : "System";
 
+            // Loại giao dịch
+            String transactionType = getTransactionType(tx);
+
             return StockTransactionReportDTO.builder()
-                    .imageUrl(imageUrl)
+                    .imageUrl(sku != null && sku.getProduct() != null ? sku.getProduct().getImageUrl() : null)
                     .productVariant(sku != null ? sku.getName() : "N/A")
                     .sku(sku != null ? sku.getSku() : "")
-                    .barcode(sku != null ? sku.getBarcode() : "")
+                    .warehouseName(warehouse != null ? warehouse.getName() : "N/A")
+                    .transactionType(transactionType)
                     .time(tx.getCreatedAt())
-                    .quantity(tx.getQuantity())
-                    .reserved(stock != null ? stock.getQtyReserved() : 0)
-                    .buffer(stock != null ? stock.getSafetyStock() : 0)
-                    .available(stock != null
-                            ? stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock()
-                            : 0)
-                    .purchasePrice(BigDecimal.ZERO) // TODO: trace từ PO theo refId
+                    .quantity(tx.getDirection() == StockTransaction.Direction.OUT
+                            ? -Math.abs(tx.getQuantity())
+                            : Math.abs(tx.getQuantity()))
+                    .purchasePrice(BigDecimal.ZERO)
                     .retailPrice(sku != null ? sku.getPrice() : BigDecimal.ZERO)
                     .agent(agent)
                     .build();
         }).toList();
     }
 
+    private String getTransactionType(StockTransaction tx) {
+        if (tx.getRefType() == null) {
+            return tx.getDirection() == StockTransaction.Direction.IN ? "Nhập kho" : "Xuất kho";
+        }
+        switch (tx.getRefType().toUpperCase()) {
+            case "PO":
+                return "Nhập kho";
+            case "SO":
+                return "Xuất kho";
+            case "ADJUST":
+                return "Điều chỉnh";
+            case "TRANSFER":
+                return "Chuyển kho";
+            default:
+                return tx.getDirection() == StockTransaction.Direction.IN ? "Nhập kho" : "Xuất kho";
+        }
+    }
 }

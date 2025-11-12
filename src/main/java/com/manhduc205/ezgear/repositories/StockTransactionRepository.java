@@ -8,6 +8,12 @@ import java.util.List;
 
 @Repository
 public interface StockTransactionRepository extends JpaRepository<StockTransaction, Long> {
+
     List<StockTransaction> findBySkuIdAndWarehouseId(Long skuId, Long warehouseId);
+
+    List<StockTransaction> findBySkuId(Long skuId);
+
+    List<StockTransaction> findByWarehouseId(Long warehouseId);
+
     List<StockTransaction> findByRefTypeAndRefId(String refType, Long refId);
 }

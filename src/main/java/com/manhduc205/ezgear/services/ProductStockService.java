@@ -10,4 +10,5 @@ public interface ProductStockService {
     ProductStockDTO adjustStock(ProductStockDTO productStockDTO, int delta);
     int getAvailable(Long skuId, Long warehouseId);
     void reduceStock(List<CartItemRequest> cartItems, Long orderId);
+    List<ProductStockDTO> getAllStock();
 }

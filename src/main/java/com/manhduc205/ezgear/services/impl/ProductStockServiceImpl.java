@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -71,4 +72,22 @@ public class ProductStockServiceImpl implements ProductStockService {
             adjustStock(dto, -item.getQuantity());
         }
     }
+
+    @Override
+    public List<ProductStockDTO> getAllStock() {
+        List<ProductStock> allStocks = productStockRepository.findAll();
+        return allStocks.stream()
+                .map(stock -> ProductStockDTO.builder()
+                        .id(stock.getId())
+                        .skuId(stock.getProductSku().getId())
+                        .warehouseId(stock.getWarehouse().getId())
+                        .qtyOnHand(stock.getQtyOnHand())
+                        .qtyReserved(stock.getQtyReserved())
+                        .safetyStock(stock.getSafetyStock())
+                        .available(stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock())
+                        .build()
+                )
+                .collect(Collectors.toList());
+    }
+
 }
