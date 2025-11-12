@@ -16,7 +16,7 @@ public class Branch extends AbstractEntity{
     @Column(nullable = false, unique = true)
     private String code;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String name;
 
     // Liên kết đến bảng locations qua location_code

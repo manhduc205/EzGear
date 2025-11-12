@@ -21,7 +21,7 @@ public class BranchServiceImpl implements BranchService {
 
     @Override
     public Branch createBranch(BranchDTO dto) {
-        Location location = locationRepo.findById(dto.getLocationCode())
+        Location location = locationRepo.findByCode(dto.getLocationCode())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy mã Location"));
         Branch branch = Branch.builder()
                 .code(dto.getCode())
@@ -35,10 +35,22 @@ public class BranchServiceImpl implements BranchService {
     }
 
     @Override
-    public List<Branch> getAll() {
-        return branchRepo.findAll();
+    public List<BranchDTO> getAll() {
+        return branchRepo.findAll().stream()
+                .map(this::toDTO)
+                .toList();
     }
-
+    private BranchDTO toDTO(Branch branch) {
+        return BranchDTO.builder()
+                .id(branch.getId())
+                .code(branch.getCode())
+                .name(branch.getName())
+                .locationCode(branch.getLocation() != null ? branch.getLocation().getCode() : null)
+                .addressLine(branch.getAddressLine())
+                .phone(branch.getPhone())
+                .isActive(branch.getIsActive())
+                .build();
+    }
     @Override
     public Optional<Branch> getById(Long id) {
         return branchRepo.findById(id);
@@ -52,7 +64,7 @@ public class BranchServiceImpl implements BranchService {
         if (dto.getName() != null)
             branch.setName(dto.getName());
         if (dto.getLocationCode() != null) {
-            Location location = locationRepo.findById(dto.getLocationCode())
+            Location location = locationRepo.findByCode(dto.getLocationCode())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy Location với mã: " + dto.getLocationCode()));
             branch.setLocation(location);
         }
