@@ -2,6 +2,7 @@ package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
+import com.manhduc205.ezgear.dtos.responses.StockResponse;
 import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.models.ProductStock;
 import com.manhduc205.ezgear.models.Warehouse;
@@ -74,20 +75,23 @@ public class ProductStockServiceImpl implements ProductStockService {
     }
 
     @Override
-    public List<ProductStockDTO> getAllStock() {
-        List<ProductStock> allStocks = productStockRepository.findAll();
-        return allStocks.stream()
-                .map(stock -> ProductStockDTO.builder()
-                        .id(stock.getId())
-                        .skuId(stock.getProductSku().getId())
-                        .warehouseId(stock.getWarehouse().getId())
+    public List<StockResponse> getAllStock() {
+        return productStockRepository.findAll()
+                .stream()
+                .map(stock -> StockResponse.builder()
+                        .sku(stock.getProductSku().getSku())
+                        .skuName(stock.getProductSku().getName())
+                        .warehouseName(stock.getWarehouse().getName())
                         .qtyOnHand(stock.getQtyOnHand())
                         .qtyReserved(stock.getQtyReserved())
                         .safetyStock(stock.getSafetyStock())
-                        .available(stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock())
+                        .available(stock.getQtyOnHand()
+                                - stock.getQtyReserved()
+                                - stock.getSafetyStock())
                         .build()
                 )
-                .collect(Collectors.toList());
+                .toList();
     }
+
 
 }

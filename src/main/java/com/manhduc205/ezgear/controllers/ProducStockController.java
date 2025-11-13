@@ -1,6 +1,7 @@
 package com.manhduc205.ezgear.controllers;
 
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
+import com.manhduc205.ezgear.dtos.responses.StockResponse;
 import com.manhduc205.ezgear.services.ProductStockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,8 +30,8 @@ public class ProducStockController {
     }
 
     @GetMapping("")
-    public ResponseEntity<List<ProductStockDTO>> getAllStock() {
-        List<ProductStockDTO> stocks = productStockService.getAllStock();
+    public ResponseEntity<?> getAllStock() {
+        List<StockResponse> stocks = productStockService.getAllStock();
         return ResponseEntity.ok(stocks);
     }
 }
