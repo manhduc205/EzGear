@@ -1,6 +1,8 @@
 package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.PurchaseOrderDTO;
+import com.manhduc205.ezgear.dtos.responses.PurchaseOrderItemResponse;
+import com.manhduc205.ezgear.dtos.responses.PurchaseOrderResponse;
 import com.manhduc205.ezgear.mapper.PurchaseOrderMapper;
 import com.manhduc205.ezgear.models.*;
 import com.manhduc205.ezgear.repositories.ProductSkuRepository;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -104,11 +107,47 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         return purchaseOrderMapper.toDTO(po);
     }
     @Override
-    public List<PurchaseOrderDTO> getAll() {
+    public List<PurchaseOrderResponse> getAll() {
         return purchaseOrderRepository.findAll().stream()
-                .map(purchaseOrderMapper::toDTO)
-                .toList();
+                .map(po -> {
+
+                    // Tính lại subtotal
+                    BigDecimal subtotal = po.getItems().stream()
+                            .map(item -> item.getUnitPrice()
+                                    .multiply(BigDecimal.valueOf(item.getQuantity())))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    BigDecimal total = subtotal;
+
+                    // Map từng item sang response
+                    List<PurchaseOrderItemResponse> itemResponses = po.getItems().stream()
+                            .map(item -> PurchaseOrderItemResponse.builder()
+                                    .sku(item.getProductSKU().getSku())
+                                    .skuName(item.getProductSKU().getName())
+                                    .quantity(item.getQuantity())
+                                    .unitPrice(item.getUnitPrice())
+                                    .lineTotal(item.getUnitPrice()
+                                            .multiply(BigDecimal.valueOf(item.getQuantity())))
+                                    .build()
+                            ).toList();
+
+                    // Trả về response đầy đủ
+                    return PurchaseOrderResponse.builder()
+                            .id(po.getId())
+                            .code(po.getCode())
+                            .supplierName(po.getSupplierName())
+                            .warehouseName(po.getWarehouse().getName())
+                            .status(po.getStatus())
+                            .subtotal(subtotal)
+                            .total(total)
+                            .note(po.getNote())
+                            .createdBy(po.getCreatedBy())
+                            .items(itemResponses)
+                            .build();
+
+                }).toList();
     }
+
 
     @Override
     public PurchaseOrderDTO getById(Long id) {
