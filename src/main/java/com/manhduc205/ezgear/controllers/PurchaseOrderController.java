@@ -149,5 +149,28 @@ public class PurchaseOrderController {
         }
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updatePO(
+            @PathVariable Long id,
+            @RequestBody PurchaseOrderDTO dto) {
+        try {
+            PurchaseOrderDTO updated = purchaseOrderService.updateOrder(id, dto);
+            return ResponseEntity.ok(
+                    ApiResponse.builder()
+                            .success(true)
+                            .message("Purchase order updated successfully")
+                            .payload(updated)
+                            .build()
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    ApiResponse.builder()
+                            .success(false)
+                            .message("Error while updating purchase order")
+                            .error(e.getMessage())
+                            .build()
+            );
+        }
+    }
 
 }

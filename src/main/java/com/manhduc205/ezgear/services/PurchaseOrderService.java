@@ -12,4 +12,6 @@ public interface PurchaseOrderService {
     PurchaseOrderDTO cancelOrder(Long id);
     List<PurchaseOrderResponse> getAll();
     PurchaseOrderDTO getById(Long id);
+    PurchaseOrderDTO updateOrder(Long id, PurchaseOrderDTO dto);
+
 }
