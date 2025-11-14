@@ -58,7 +58,7 @@ public class StockTransactionServiceImpl implements StockTransactionService {
                     .quantity(tx.getDirection() == StockTransaction.Direction.OUT
                             ? -Math.abs(tx.getQuantity())
                             : Math.abs(tx.getQuantity()))
-                    .purchasePrice(BigDecimal.ZERO)
+                    .purchasePrice(tx.getPurchasePrice() != null ? tx.getPurchasePrice() : BigDecimal.ZERO)
                     .retailPrice(sku != null ? sku.getPrice() : BigDecimal.ZERO)
                     .agent(agent)
                     .build();

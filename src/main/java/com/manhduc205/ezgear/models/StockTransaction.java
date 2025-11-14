@@ -3,6 +3,7 @@ package com.manhduc205.ezgear.models;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -30,6 +31,9 @@ public class StockTransaction {
 
     @Column(nullable = false)
     private Integer quantity;
+
+    @Column(name = "purchase_price")
+    private BigDecimal purchasePrice;
 
     @Column(name = "ref_type")
     private String refType; // PO, SO, TRANSFER, ADJUST...
