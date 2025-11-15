@@ -17,7 +17,6 @@ public class StockTransactionServiceImpl implements StockTransactionService {
     private final StockTransactionRepository stockTransactionRepository;
     private final ProductSkuRepository productSkuRepository;
     private final WarehouseRepository warehouseRepository;
-    private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
 
     @Override
@@ -39,11 +38,10 @@ public class StockTransactionServiceImpl implements StockTransactionService {
             Warehouse warehouse = warehouseRepository.findById(tx.getWarehouseId()).orElse(null);
 
             // Lấy người thực hiện
-            AuditLog audit = auditLogRepository.findTopByEntityTypeAndEntityIdOrderByCreatedAtDesc(
-                    "StockTransaction", tx.getId());
-            String agent = audit != null
-                    ? userRepository.findById(audit.getActorId()).map(User::getUsername).orElse("System")
-                    : "System";
+            String agent = userRepository.findById(tx.getCreatedBy())
+                    .map(u -> u.getFullName() != null ? u.getFullName() : u.getEmail())
+                    .orElse("System");
+
 
             // Loại giao dịch
             String transactionType = getTransactionType(tx);
@@ -58,6 +56,8 @@ public class StockTransactionServiceImpl implements StockTransactionService {
                     .quantity(tx.getDirection() == StockTransaction.Direction.OUT
                             ? -Math.abs(tx.getQuantity())
                             : Math.abs(tx.getQuantity()))
+                    .stockBefore(tx.getStockBefore())
+                    .stockAfter(tx.getStockAfter())
                     .purchasePrice(tx.getPurchasePrice() != null ? tx.getPurchasePrice() : BigDecimal.ZERO)
                     .retailPrice(sku != null ? sku.getPrice() : BigDecimal.ZERO)
                     .agent(agent)

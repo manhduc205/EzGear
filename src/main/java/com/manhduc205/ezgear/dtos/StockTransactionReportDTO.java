@@ -20,9 +20,10 @@ public class StockTransactionReportDTO {
     private String transactionType;  // Nhập kho / Xuất kho / Điều chỉnh
     private LocalDateTime time;      // Thời gian giao dịch
     private Integer quantity;        // Số lượng thay đổi (+/-)
+    private Integer stockBefore;     // Tồn trước giao dịch
     private Integer stockAfter;      // Tồn sau giao dịch
     private BigDecimal purchasePrice;// Giá nhập
-    private BigDecimal retailPrice;  // Giá bán
+    private BigDecimal retailPrice;  // Giá bán hiện tại
     private String agent;            // Người thực hiện
 }
 

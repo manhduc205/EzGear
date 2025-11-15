@@ -32,6 +32,12 @@ public class StockTransaction {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Column(name = "stock_before")
+    private Integer stockBefore; // Tồn kho trước khi giao dịch
+
+    @Column(name = "stock_after")
+    private Integer stockAfter;  // Tồn kho sau giao dịch
+
     @Column(name = "purchase_price")
     private BigDecimal purchasePrice;
 
@@ -43,6 +49,8 @@ public class StockTransaction {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+    @Column(name = "created_by")
+    private Long createdBy;
 
     public enum Direction {
         IN, OUT
