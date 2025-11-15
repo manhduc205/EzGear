@@ -6,17 +6,16 @@ import com.manhduc205.ezgear.dtos.responses.PurchaseOrderItemResponse;
 import com.manhduc205.ezgear.dtos.responses.PurchaseOrderResponse;
 import com.manhduc205.ezgear.mapper.PurchaseOrderMapper;
 import com.manhduc205.ezgear.models.*;
-import com.manhduc205.ezgear.repositories.ProductSkuRepository;
-import com.manhduc205.ezgear.repositories.StockTransactionRepository;
-import com.manhduc205.ezgear.repositories.WarehouseRepository;
-import com.manhduc205.ezgear.repositories.PurchaseOrderRepository;
+import com.manhduc205.ezgear.repositories.*;
+import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.PurchaseOrderService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,7 +27,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     private final ProductSkuRepository productSkuRepository;
     private final PurchaseOrderRepository purchaseOrderRepository;
     private final PurchaseOrderMapper  purchaseOrderMapper;
+    private final ProductStockRepository productStockRepository;
     private final StockTransactionRepository stockTransactionRepository;
+
     @Override
     public PurchaseOrderDTO createOrder(PurchaseOrderDTO purchaseOrderDTO) {
         Warehouse warehouse = warehouseRepository.findById(purchaseOrderDTO.getWarehouseId())
@@ -64,47 +65,95 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderDTO confirmOrder(Long id) {
         PurchaseOrder  po = purchaseOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Purchase order not found"));
+
         po.setStatus("CONFIRMED");
+        purchaseOrderRepository.save(po);
+
         return purchaseOrderMapper.toDTO(po);
     }
 
     @Override
+    @Transactional
     public PurchaseOrderDTO receiveOrder(Long id) {
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        CustomUserDetails user = (CustomUserDetails) auth.getPrincipal();
+
+        Long userId = user.getId();
+
         PurchaseOrder po = purchaseOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Purchase order not found"));
 
+        if (!"CONFIRMED".equals(po.getStatus())) {
+            throw new RuntimeException("Purchase order must be CONFIRMED before receiving");
+        }
         po.setStatus("RECEIVED");
 
-        // save cho mỗi item
-        for(PurchaseOrderItem items : po.getItems()) {
+        Warehouse warehouse = po.getWarehouse();
+
+        for (PurchaseOrderItem item : po.getItems()) {
+
+            ProductSKU sku = item.getProductSKU();
+            int importQty = item.getQuantity();
+            // Lấy stock record dựa trên SKU + Warehouse
+
+            ProductStock stock = productStockRepository
+                    .findByProductSkuIdAndWarehouseId(sku.getId(), warehouse.getId())
+                    .orElseGet(() -> ProductStock.builder()
+                            .productSku(sku)
+                            .warehouse(warehouse)
+                            .qtyOnHand(0)
+                            .qtyReserved(0)
+                            .safetyStock(0)
+                            .build()
+                    );
+
+            int before = stock.getQtyOnHand();
+            int after  = before + importQty;
+            // Update tồn kho
+
+            stock.setQtyOnHand(after);
+            productStockRepository.save(stock);
+            // Lưu giao dịch kho
+
             StockTransaction st = StockTransaction.builder()
-                    .skuId(items.getProductSKU().getId())
-                    .warehouseId(po.getWarehouse().getId())
+                    .skuId(sku.getId())
+                    .warehouseId(warehouse.getId())
                     .direction(StockTransaction.Direction.IN)
-                    .quantity(items.getQuantity())
-                    .refType("PURCHASE_ORDER")
+                    .quantity(importQty)
+                    .stockBefore(before)
+                    .stockAfter(after)
+                    .purchasePrice(item.getUnitPrice())
+                    .refType("PO")
                     .refId(po.getId())
-                    .createdAt(LocalDateTime.now())
+                    .createdBy(userId)
                     .build();
+
             stockTransactionRepository.save(st);
         }
+
+        purchaseOrderRepository.save(po);
+
         return purchaseOrderMapper.toDTO(po);
     }
 
+
+
     @Override
     public PurchaseOrderDTO cancelOrder(Long id) {
+
         PurchaseOrder po = purchaseOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Purchase order not found"));
 
         if ("RECEIVED".equals(po.getStatus())) {
             throw new RuntimeException("Cannot cancel an order that has already been received");
         }
-
         po.setStatus("CANCELLED");
         purchaseOrderRepository.save(po);
 
         return purchaseOrderMapper.toDTO(po);
     }
+
     @Override
     public List<PurchaseOrderResponse> getAll() {
         return purchaseOrderRepository.findAll().stream()
@@ -177,29 +226,21 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             po.setWarehouse(wh);
         }
 
-        // ===== Convert existing items to Map for fast lookup =====
         Map<Long, PurchaseOrderItem> existing =
                 po.getItems().stream().collect(Collectors.toMap(PurchaseOrderItem::getId, i -> i));
 
         List<PurchaseOrderItem> newList = new ArrayList<>();
 
         for (PurchaseOrderItemDTO itemDTO : dto.getItems()) {
-
-            // ========== CASE B: UPDATE existing item ==========
+            // existing item
             if (itemDTO.getId() != null && existing.containsKey(itemDTO.getId())) {
-
                 PurchaseOrderItem item = existing.get(itemDTO.getId());
-
                 item.setQuantity(itemDTO.getQuantity());
                 item.setUnitPrice(itemDTO.getUnitPrice());
-
                 newList.add(item);
-
-                existing.remove(itemDTO.getId()); // Mark as handled
-            }
-
-            // ========== CASE A: ADD new item ==========
-            else {
+                existing.remove(itemDTO.getId());
+            } else {
+                // thêm item mới
                 ProductSKU sku = productSkuRepository.findById(itemDTO.getSkuId())
                         .orElseThrow(() -> new RuntimeException("SKU not found"));
 
@@ -214,7 +255,6 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             }
         }
 
-        // ========== CASE C: DELETE items removed by user ==========
         for (PurchaseOrderItem removed : existing.values()) {
             po.getItems().remove(removed);
         }
@@ -223,7 +263,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         po.getItems().clear();
         po.getItems().addAll(newList);
 
-        // ===== Recalculate subtotal / total =====
+        // tính lại subtotal và total
         BigDecimal subtotal = po.getItems().stream()
                 .map(i -> i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
