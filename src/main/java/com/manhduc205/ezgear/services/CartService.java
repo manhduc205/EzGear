@@ -1,7 +1,13 @@
 package com.manhduc205.ezgear.services;
 
+import com.manhduc205.ezgear.dtos.request.AddToCartRequest;
+import com.manhduc205.ezgear.dtos.responses.CartItemResponse;
+import com.manhduc205.ezgear.dtos.responses.CartResponse;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.CustomerAddress;
+import com.manhduc205.ezgear.models.Product;
+import com.manhduc205.ezgear.models.ProductImage;
+import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.models.cart.Cart;
 import com.manhduc205.ezgear.models.cart.CartItem;
 import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
@@ -11,132 +17,173 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
+// dùng concurentHashMap an toàn hơn với đa luồng, tránh race condition
 @Service
 @RequiredArgsConstructor
 public class CartService {
+
     private final CartRepository cartRepository;
     private final ProductStockService productStockService;
     private final WarehouseService warehouseService;
+    private final ProductSkuService productSkuService;
     private final CustomerAddressRepository customerAddressRepository;
-    // dùng concurentHashMap an toàn hơn với đa luồng, tránh race condition
+
     private final Map<Long, Long> warehouseCache = new ConcurrentHashMap<>();
 
-    public Cart getCart(Long userId) {
-        return cartRepository.findByUserId(userId)
-                .orElseGet(() -> {
-                    Cart newCart = Cart.builder()
-                            .userId(userId)
-                            .items(new ArrayList<>())
-                            .createdAt(LocalDateTime.now())
-                            .updatedAt(LocalDateTime.now())
-                            .build();
-                    return cartRepository.save(newCart);
-                });
+
+    public CartResponse getCart(Long userId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseGet(() -> cartRepository.save(
+                        Cart.builder()
+                                .userId(userId)
+                                .items(new ArrayList<>())
+                                .createdAt(LocalDateTime.now())
+                                .updatedAt(LocalDateTime.now())
+                                .build()
+                ));
+
+        return buildCartResponse(cart);
     }
 
-    public Cart addItem(Long userId, CartItem item) {
-//
-//        CustomerAddress address = customerAddressRepository.findByUserIdAndIsDefaultTrue(userId)
-//                .orElseThrow(() -> new RequestException("Bạn chưa có địa chỉ giao hàng mặc định."));
-//
-//        //kho tương ứng với tỉnh/thành
-//        Long warehouseId = warehouseService.getWarehouseIdByAddress(address);
-//        // tồn kho
-//        int quantityAvailable = productStockService.getAvailable(item.getSkuId(),warehouseId);
-        validateStock(userId, item.getSkuId(), item.getQuantity());
-        Cart cart = getCart(userId);
 
-        CartItem existingItem = null;
-        for (CartItem it : cart.getItems()) {
-            if (it.getSkuId().equals(item.getSkuId())) {
-                existingItem = it;
-                break;
-            }
-        }
+    // ===================== THÊM SẢN PHẨM ===================== //
 
+    public CartResponse addItem(Long userId, AddToCartRequest req) {
 
-        int newQuantity = (existingItem != null ? existingItem.getQuantity() : 0) + item.getQuantity();
+        // ---- Kiểm tra tồn kho (số lượng muốn thêm) ----
+        validateStock(userId, req.getSkuId(), req.getQuantity());
 
-        validateStock(userId, item.getSkuId(), newQuantity);
+        // ---- Tạo giỏ nếu chưa có ----
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseGet(() -> cartRepository.save(Cart.builder()
+                        .userId(userId)
+                        .items(new ArrayList<>())
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .build()
+                ));
 
-        if (existingItem != null) {
-            existingItem.setQuantity(newQuantity);
-        }
-        else {
-            cart.getItems().add(item);
+        // ---- Tìm xem SKU đã có trong cart chưa ----
+        CartItem existing = cart.getItems().stream()
+                .filter(i -> i.getSkuId().equals(req.getSkuId()))
+                .findFirst()
+                .orElse(null);
+
+        int newQty = (existing != null ? existing.getQuantity() : 0) + req.getQuantity();
+
+        // ---- Kiểm tra tồn kho tổng quantity sau khi cộng dồn ----
+        validateStock(userId, req.getSkuId(), newQty);
+
+        if (existing != null) {
+            existing.setQuantity(newQty);
+        } else {
+            cart.getItems().add(new CartItem(req.getSkuId(), req.getQuantity(), true));
         }
 
         cart.setUpdatedAt(LocalDateTime.now());
-        return cartRepository.save(cart);
+        cartRepository.save(cart);
+
+        return buildCartResponse(cart);
     }
 
-    public Cart updateQuantity(Long userId, Long skuId, int newQuantity) {
-        Cart cart = getCart(userId);
-        validateStock(userId, skuId, newQuantity);
 
-        CartItem existingItem = null;
-        for (CartItem it : cart.getItems()) {
-            if (it.getSkuId().equals(skuId)) {
-                existingItem = it;
-                break;
-            }
-        }
-        if (existingItem == null) {
-            throw new RequestException("Không tìm thấy sản phẩm trong giỏ hàng.");
-        }
-        existingItem.setQuantity(newQuantity);
+    // ===================== CẬP NHẬT SỐ LƯỢNG ===================== //
+
+    public CartResponse updateQuantity(Long userId, Long skuId, int qty) {
+
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RequestException("Giỏ hàng rỗng"));
+
+        validateStock(userId, skuId, qty);
+
+        CartItem item = cart.getItems().stream()
+                .filter(i -> i.getSkuId().equals(skuId))
+                .findFirst()
+                .orElseThrow(() -> new RequestException("Sản phẩm không có trong giỏ"));
+
+        item.setQuantity(qty);
         cart.setUpdatedAt(LocalDateTime.now());
-        return cartRepository.save(cart);
+
+        cartRepository.save(cart);
+        return buildCartResponse(cart);
     }
 
-    public Cart removeItem(Long userId, Long skuId) {
-        Cart cart = getCart(userId);
 
-//        for (Iterator<CartItem> iterator = cart.getItems().iterator(); iterator.hasNext();) {
-//            CartItem item = iterator.next();
-//            if (item.getSkuId().equals(skuId)) {
-//                iterator.remove();
-//            }
-//        }
+    // ===================== XOÁ SẢN PHẨM ===================== //
 
-        boolean removed = cart.getItems().removeIf(i -> skuId.equals(i.getSkuId()));
-        if (!removed) {
-            throw new RequestException("Không tìm thấy sản phẩm trong giỏ hàng.");
-        }
+    public CartResponse removeItem(Long userId, Long skuId) {
+
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RequestException("Giỏ hàng rỗng"));
+
+        boolean removed = cart.getItems().removeIf(i -> i.getSkuId().equals(skuId));
+
+        if (!removed)
+            throw new RequestException("Không tìm thấy sản phẩm cần xoá");
+
         cart.setUpdatedAt(LocalDateTime.now());
-        return cartRepository.save(cart);
+        cartRepository.save(cart);
+
+        return buildCartResponse(cart);
     }
+
+
+    // ===================== XÓA TOÀN BỘ GIỎ ===================== //
 
     public void clearCart(Long userId) {
-        Cart cart = getCart(userId);
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RequestException("Giỏ hàng rỗng"));
         cart.getItems().clear();
-        cart.setUpdatedAt(LocalDateTime.now());
         cartRepository.save(cart);
     }
 
-    // ktra tồn kho
+
+    // ===================== KIỂM TRA TỒN KHO ===================== //
+
     private void validateStock(Long userId, Long skuId, int quantity) {
+
         if (quantity <= 0) return;
 
-        // key chưa tồn tại trong map -> chạy hàm mappingFunction để tính ra value mới và thêm vào map
-        // key tồn tại -> lấy value hiện có, k chạy hàm nữa
-        Long warehouseId = warehouseCache.computeIfAbsent(userId, id -> {
-            CustomerAddress address = customerAddressRepository.findByUserIdAndIsDefaultTrue(id)
-                    .orElseThrow(() -> new RequestException("Bạn chưa có địa chỉ giao hàng mặc định."));
-            return warehouseService.getWarehouseIdByAddress(address);
+        // Lấy warehouse từ cache hoặc tính mới
+        Long warehouseId = warehouseCache.computeIfAbsent(userId, uid -> {
+            var addr = customerAddressRepository.findByUserIdAndIsDefaultTrue(uid)
+                    .orElseThrow(() -> new RequestException("Bạn chưa chọn địa chỉ mặc định"));
+            return warehouseService.getWarehouseIdByAddress(addr);
         });
 
-        int quantityAvailable = productStockService.getAvailable(skuId, warehouseId);
-        if (quantity > quantityAvailable) {
-            throw new RequestException("Không đủ tồn kho, chỉ còn " + quantityAvailable + " sản phẩm.");
-        }
+        int available = productStockService.getAvailable(skuId, warehouseId);
+
+        if (quantity > available)
+            throw new RequestException("Không đủ tồn kho. Chỉ còn " + available + " sản phẩm.");
     }
-    // xóa cache warehouseId khi user cập nhật lại địa chỉ mặc định
-    public void invalidateWarehouseCache(Long userId) {
-        warehouseCache.remove(userId);
+
+
+    // ===================== MAP CART → RESPONSE ===================== //
+
+    private CartResponse buildCartResponse(Cart cart) {
+
+        List<CartItemResponse> items = cart.getItems().stream().map(ci -> {
+
+            ProductSKU sku = productSkuService.getById(ci.getSkuId());
+
+            Product product = sku.getProduct();
+            return CartItemResponse.builder()
+                    .skuId(ci.getSkuId())
+                    .productName(sku.getName())
+                    .imageUrl(product.getImageUrl())
+                    .price(sku.getPrice())
+                    .quantity(ci.getQuantity())
+                    .selected(ci.getSelected())
+                    .build();
+
+        }).toList();
+
+        return CartResponse.builder()
+                .userId(cart.getUserId())
+                .items(items)
+                .build();
     }
 }
-

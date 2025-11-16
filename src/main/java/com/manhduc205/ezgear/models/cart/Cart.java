@@ -24,12 +24,8 @@ import java.util.List;
 public class Cart {
     @Id
     private String id;
-
     private Long userId;
-
     private List<CartItem> items = new ArrayList<>();
-
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
 }

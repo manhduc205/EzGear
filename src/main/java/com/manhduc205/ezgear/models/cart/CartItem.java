@@ -11,10 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CartItem {
     private Long skuId;
-    private String productName;
-    private String imageUrl;
     private Integer quantity;
-    private Double price;
-    private Boolean selected = true;
+    private Boolean selected;
 }
 
