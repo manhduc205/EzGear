@@ -3,6 +3,7 @@ package com.manhduc205.ezgear.services.impl;
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.responses.StockResponse;
+import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.models.ProductStock;
 import com.manhduc205.ezgear.models.Warehouse;
@@ -64,15 +65,28 @@ public class ProductStockServiceImpl implements ProductStockService {
 
     @Override
     @Transactional
-    public void reduceStock(List<CartItemRequest> cartItems, Long orderId) {
+    public void reduceStock(List<CartItemRequest> cartItems, Long warehouseId, Long orderId) {
+
+        if (warehouseId == null) {
+            throw new RequestException("Không tìm thấy kho để trừ tồn.");
+        }
+
         for (CartItemRequest item : cartItems) {
+
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new RequestException("Số lượng không hợp lệ khi trừ tồn.");
+            }
+
             ProductStockDTO dto = ProductStockDTO.builder()
                     .skuId(item.getSkuId())
-                    .warehouseId(1L)
+                    .warehouseId(warehouseId)
                     .build();
+
+            // ghi âm (giảm) tồn
             adjustStock(dto, -item.getQuantity());
         }
     }
+
 
     @Override
     public List<StockResponse> getAllStock() {

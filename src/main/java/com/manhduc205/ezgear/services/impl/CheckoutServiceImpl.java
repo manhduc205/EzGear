@@ -5,87 +5,123 @@ import com.manhduc205.ezgear.dtos.request.CheckoutRequest;
 import com.manhduc205.ezgear.dtos.request.OrderItemRequest;
 import com.manhduc205.ezgear.dtos.request.OrderRequest;
 import com.manhduc205.ezgear.dtos.responses.OrderResponse;
+import com.manhduc205.ezgear.exceptions.RequestException;
+import com.manhduc205.ezgear.models.CustomerAddress;
+import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.models.order.Order;
-import com.manhduc205.ezgear.services.CheckoutService;
-import com.manhduc205.ezgear.services.OrderService;
-import com.manhduc205.ezgear.services.ProductStockService;
-import com.manhduc205.ezgear.services.PromotionService;
+import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
+import com.manhduc205.ezgear.repositories.ProductSkuRepository;
+import com.manhduc205.ezgear.services.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class CheckoutServiceImpl implements CheckoutService {
 
     private final ProductStockService stockService;
-    private final PromotionService promotionService;
     private final OrderService orderService;
+    private final ProductSkuRepository productSkuRepository;
+    private final CustomerAddressRepository customerAddressRepository;
+    private final WarehouseService warehouseService;
 
     @Transactional
     public OrderResponse checkout(CheckoutRequest req, Long userId) {
 
-        // Kiểm tra tồn kho từng SKU
+        // 1. Validate giỏ hàng
+        if (req.getCartItems() == null || req.getCartItems().isEmpty()) {
+            throw new RequestException("Giỏ hàng trống, không thể thanh toán.");
+        }
+
+        // 2. Validate địa chỉ giao hàng
+        if (req.getAddressId() == null) {
+            throw new RequestException("Bạn chưa chọn địa chỉ giao hàng.");
+        }
+
+        CustomerAddress address = customerAddressRepository
+                .findByIdAndUserId(req.getAddressId(), userId)
+                .orElseThrow(() -> new RequestException("Địa chỉ giao hàng không hợp lệ."));
+
+        // 3. Lấy kho theo địa chỉ
+        Long warehouseId = warehouseService.getWarehouseIdByAddress(address);
+
+        // 4. Kiểm tra tồn kho từng SKU
         for (CartItemRequest item : req.getCartItems()) {
-            int available = stockService.getAvailable(item.getSkuId(), 1L); // warehouse mặc định
+
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new RequestException("Số lượng không hợp lệ cho SKU " + item.getSkuId());
+            }
+
+            int available = stockService.getAvailable(item.getSkuId(), warehouseId);
+
             if (available < item.getQuantity()) {
-                throw new RuntimeException("Sản phẩm SKU " + item.getSkuId() + " không đủ hàng tồn");
+                throw new RequestException(
+                        "Sản phẩm SKU " + item.getSkuId() +
+                                " không đủ tồn kho (còn " + available + ")."
+                );
             }
         }
 
-        //Tính tổng phụ (subtotal)
-        BigDecimal subtotal = req.getCartItems().stream()
-                .map(i -> {
-                    BigDecimal price = i.getUnitPrice() != null ? i.getUnitPrice() : BigDecimal.ZERO;
-                    BigDecimal discount = i.getDiscountAmount() != null ? i.getDiscountAmount() : BigDecimal.ZERO;
-                    return price.subtract(discount).multiply(BigDecimal.valueOf(i.getQuantity()));
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 5. Tính subtotal từ giá SKU trong DB (KHÔNG tin dữ liệu FE gửi)
+        BigDecimal subtotal = BigDecimal.ZERO;
 
-        BigDecimal discount = promotionService.applyVoucher(req.getVoucherCode(), subtotal);
+        List<OrderItemRequest> orderItems = new ArrayList<>();
 
-        BigDecimal shippingFee = req.getShippingFee() != null ? req.getShippingFee() : BigDecimal.valueOf(25000);
+        for (CartItemRequest ci : req.getCartItems()) {
 
-        BigDecimal total = subtotal.subtract(discount).add(shippingFee);
+            ProductSKU sku = productSkuRepository.findById(ci.getSkuId())
+                    .orElseThrow(() -> new RequestException("SKU " + ci.getSkuId() + " không tồn tại."));
 
+            BigDecimal unitPrice = sku.getPrice() != null ? sku.getPrice() : BigDecimal.ZERO;
+
+            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(ci.getQuantity()));
+            subtotal = subtotal.add(lineTotal);
+
+            OrderItemRequest itemReq = OrderItemRequest.builder()
+                    .skuId(sku.getId())
+                    .productNameSnapshot(sku.getProduct().getName())
+                    .skuNameSnapshot(sku.getName())
+                    .quantity(ci.getQuantity())
+                    .unitPrice(unitPrice)
+                    .discountAmount(BigDecimal.ZERO)     // chưa làm discount
+                    .build();
+
+            orderItems.add(itemReq);
+        }
+
+        // 6. Tạo Order
         OrderRequest orderReq = OrderRequest.builder()
                 .userId(userId)
                 .shippingAddressId(req.getAddressId())
                 .subtotal(subtotal)
-                .discountTotal(discount)
-                .shippingFee(shippingFee)
-                .grandTotal(total)
+                .discountTotal(BigDecimal.ZERO)         // chưa hỗ trợ giảm giá
+                .shippingFee(BigDecimal.ZERO)           // chưa tính phí ship
+                .grandTotal(subtotal)                   // total = subtotal
                 .paymentMethod(req.getPaymentMethod())
-                .items(req.getCartItems().stream().map(ci ->
-                        OrderItemRequest.builder()
-                                .skuId(ci.getSkuId())
-                                .productNameSnapshot("SKU " + ci.getSkuId())
-                                .skuNameSnapshot("Default")
-                                .quantity(ci.getQuantity())
-                                .unitPrice(ci.getUnitPrice())
-                                .discountAmount(ci.getDiscountAmount())
-                                .build()
-                ).toList())
+                .items(orderItems)
                 .build();
 
-        // 7️⃣ Tạo order
         Order order = orderService.createOrder(orderReq);
 
-        // 8️⃣ Trừ tồn kho
-        stockService.reduceStock(req.getCartItems(), order.getId());
+        // 7. Trừ tồn kho
+        stockService.reduceStock(req.getCartItems(), warehouseId, order.getId());
 
-        // 9️⃣ Trả về kết quả
+        // 8. Trả về response
         return OrderResponse.builder()
                 .orderCode(order.getCode())
                 .subtotal(subtotal)
-                .discount(discount)
-                .shippingFee(shippingFee)
-                .total(total)
+                .discount(BigDecimal.ZERO)
+                .shippingFee(BigDecimal.ZERO)
+                .total(subtotal)
                 .paymentMethod(req.getPaymentMethod())
                 .status(order.getStatus())
                 .createdAt(order.getCreatedAt())
                 .build();
     }
 }
+

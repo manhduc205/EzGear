@@ -10,6 +10,6 @@ import java.util.List;
 public interface ProductStockService {
     ProductStockDTO adjustStock(ProductStockDTO productStockDTO, int delta);
     int getAvailable(Long skuId, Long warehouseId);
-    void reduceStock(List<CartItemRequest> cartItems, Long orderId);
+    void reduceStock(List<CartItemRequest> cartItems, Long warehouseId, Long orderId);
     List<StockResponse> getAllStock();
 }
