@@ -14,4 +14,5 @@ public interface ProductSkuService {
     ProductSKU updateProductSku(Long id,ProductSkuDTO productSKUDTO);
     void deleteProductSku(Long id);
     Page<ProductSKU> searchProductSkus(ProductSkuSearchRequest request);
+    ProductSKU getById(Long id);
 }

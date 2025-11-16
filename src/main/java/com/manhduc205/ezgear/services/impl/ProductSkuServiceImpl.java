@@ -147,5 +147,10 @@ public class ProductSkuServiceImpl implements ProductSkuService {
 
     }
 
+    @Override
+    public ProductSKU getById(Long id) {
+        return productSkuRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("ProductSKU not found"));
+    }
 
 }
