@@ -1,7 +1,9 @@
 package com.manhduc205.ezgear.controllers;
 
 import com.manhduc205.ezgear.dtos.request.AddToCartRequest;
+import com.manhduc205.ezgear.dtos.request.CartCheckoutRequest;
 import com.manhduc205.ezgear.dtos.responses.CartResponse;
+import com.manhduc205.ezgear.dtos.responses.CartCheckoutPreviewResponse;
 import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.CartService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +17,15 @@ import org.springframework.web.bind.annotation.*;
 public class CartController {
 
     private final CartService cartService;
+
+    @PostMapping
+    public ResponseEntity<CartCheckoutPreviewResponse> checkout(@RequestBody CartCheckoutRequest request,
+                                                                @AuthenticationPrincipal CustomUserDetails user) {
+
+        Long userId = user.getId();
+        CartCheckoutPreviewResponse response = cartService.previewCheckout(request, userId);
+        return ResponseEntity.ok(response);
+    }
 
     @GetMapping("")
     public ResponseEntity<CartResponse> getCart(@AuthenticationPrincipal CustomUserDetails user) {

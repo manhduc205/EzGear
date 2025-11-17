@@ -5,9 +5,6 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class CheckoutRequest {
+public class CartCheckoutRequest {
     private List<CartItemRequest> cartItems;
-    private Long addressId;
-    private String voucherCode;
-    private String paymentMethod;
 }
