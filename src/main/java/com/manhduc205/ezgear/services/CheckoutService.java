@@ -1,8 +1,9 @@
 package com.manhduc205.ezgear.services;
 
-import com.manhduc205.ezgear.dtos.request.CheckoutRequest;
-import com.manhduc205.ezgear.dtos.responses.OrderResponse;
+import com.manhduc205.ezgear.dtos.request.CartCheckoutRequest;
+import com.manhduc205.ezgear.dtos.responses.CartCheckoutPreviewResponse;
+
 
 public interface CheckoutService {
-    public OrderResponse checkout(CheckoutRequest req, Long userId);
+    CartCheckoutPreviewResponse previewCheckout(CartCheckoutRequest req, Long userId);
 }
