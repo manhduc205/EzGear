@@ -39,7 +39,7 @@ public class StockTransaction {
     private Integer stockAfter;  // Tồn kho sau giao dịch
 
     @Column(name = "purchase_price")
-    private BigDecimal purchasePrice;
+    private Long  purchasePrice;
 
     @Column(name = "ref_type")
     private String refType; // PO, SO, TRANSFER, ADJUST...

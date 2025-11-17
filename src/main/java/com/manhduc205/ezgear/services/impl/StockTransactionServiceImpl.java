@@ -58,8 +58,8 @@ public class StockTransactionServiceImpl implements StockTransactionService {
                             : Math.abs(tx.getQuantity()))
                     .stockBefore(tx.getStockBefore())
                     .stockAfter(tx.getStockAfter())
-                    .purchasePrice(tx.getPurchasePrice() != null ? tx.getPurchasePrice() : BigDecimal.ZERO)
-                    .retailPrice(sku != null ? sku.getPrice() : BigDecimal.ZERO)
+                    .purchasePrice(tx.getPurchasePrice() != null ? tx.getPurchasePrice() : 0L)
+                    .retailPrice(sku != null ? sku.getPrice() : 0L)
                     .agent(agent)
                     .build();
         }).toList();

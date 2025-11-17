@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,7 +67,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
 
         // 5. Tính subtotal từ giá SKU trong DB (KHÔNG tin dữ liệu FE gửi)
-        BigDecimal subtotal = BigDecimal.ZERO;
+        Long subtotal = 0L;
 
         List<OrderItemRequest> orderItems = new ArrayList<>();
 
@@ -77,10 +76,10 @@ public class CheckoutServiceImpl implements CheckoutService {
             ProductSKU sku = productSkuRepository.findById(ci.getSkuId())
                     .orElseThrow(() -> new RequestException("SKU " + ci.getSkuId() + " không tồn tại."));
 
-            BigDecimal unitPrice = sku.getPrice() != null ? sku.getPrice() : BigDecimal.ZERO;
+            Long unitPrice = sku.getPrice() != null ? sku.getPrice() : 0L;
 
-            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(ci.getQuantity()));
-            subtotal = subtotal.add(lineTotal);
+            Long lineTotal = unitPrice * ci.getQuantity();
+            subtotal += lineTotal;
 
             OrderItemRequest itemReq = OrderItemRequest.builder()
                     .skuId(sku.getId())
@@ -88,7 +87,7 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .skuNameSnapshot(sku.getName())
                     .quantity(ci.getQuantity())
                     .unitPrice(unitPrice)
-                    .discountAmount(BigDecimal.ZERO)     // chưa làm discount
+                    .discountAmount(0L)     // chưa làm discount
                     .build();
 
             orderItems.add(itemReq);
@@ -99,9 +98,9 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .userId(userId)
                 .shippingAddressId(req.getAddressId())
                 .subtotal(subtotal)
-                .discountTotal(BigDecimal.ZERO)         // chưa hỗ trợ giảm giá
-                .shippingFee(BigDecimal.ZERO)           // chưa tính phí ship
-                .grandTotal(subtotal)                   // total = subtotal
+                .discountTotal(0L)         // chưa hỗ trợ giảm giá
+                .shippingFee(0L)           // chưa tính phí ship
+                .grandTotal(subtotal)      // total = subtotal
                 .paymentMethod(req.getPaymentMethod())
                 .items(orderItems)
                 .build();
@@ -115,8 +114,8 @@ public class CheckoutServiceImpl implements CheckoutService {
         return OrderResponse.builder()
                 .orderCode(order.getCode())
                 .subtotal(subtotal)
-                .discount(BigDecimal.ZERO)
-                .shippingFee(BigDecimal.ZERO)
+                .discount(0L)
+                .shippingFee(0L)
                 .total(subtotal)
                 .paymentMethod(req.getPaymentMethod())
                 .status(order.getStatus())
@@ -124,4 +123,3 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .build();
     }
 }
-

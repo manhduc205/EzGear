@@ -18,8 +18,8 @@ public class PurchaseOrderResponse {
     private String warehouseName;
     private String status;
 
-    private BigDecimal subtotal;
-    private BigDecimal total;
+    private Long subtotal;
+    private Long total;
 
     private String note;
     private Long createdBy;

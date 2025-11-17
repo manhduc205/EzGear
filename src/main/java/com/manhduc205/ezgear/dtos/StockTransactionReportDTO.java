@@ -22,8 +22,8 @@ public class StockTransactionReportDTO {
     private Integer quantity;        // Số lượng thay đổi (+/-)
     private Integer stockBefore;     // Tồn trước giao dịch
     private Integer stockAfter;      // Tồn sau giao dịch
-    private BigDecimal purchasePrice;// Giá nhập
-    private BigDecimal retailPrice;  // Giá bán hiện tại
+    private Long purchasePrice;// Giá nhập
+    private Long retailPrice;  // Giá bán hiện tại
     private String agent;            // Người thực hiện
 }
 

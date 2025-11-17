@@ -18,5 +18,5 @@ public class PurchaseOrderItemDTO {
 
     private Integer quantity;
 
-    private BigDecimal unitPrice;
+    private Long  unitPrice;
 }

@@ -19,7 +19,7 @@ public class ProductSkuDTO {
 
     @NotNull(message = "Price is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Price must be > 0")
-    private BigDecimal price;
+    private Long price;
 
     private String barcode;
     private Integer weightGram;

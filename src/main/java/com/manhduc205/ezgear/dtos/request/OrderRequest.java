@@ -15,13 +15,13 @@ public class OrderRequest {
 
     private Long shippingAddressId;
 
-    private BigDecimal subtotal;
+    private Long subtotal;
 
-    private BigDecimal discountTotal;
+    private Long discountTotal;
 
-    private BigDecimal shippingFee;
+    private Long shippingFee;
 
-    private BigDecimal grandTotal;
+    private Long grandTotal;
 
     private String paymentMethod;
 

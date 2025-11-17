@@ -12,10 +12,10 @@ import java.util.List;
 @Builder
 public class OrderResponse {
     private String orderCode;
-    private BigDecimal subtotal;
-    private BigDecimal discount;
-    private BigDecimal shippingFee;
-    private BigDecimal total;
+    private Long subtotal;
+    private Long discount;
+    private Long shippingFee;
+    private Long total;
     private String paymentMethod;
     private String paymentUrl;
     private String status;

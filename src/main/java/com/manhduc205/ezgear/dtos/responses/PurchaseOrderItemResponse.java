@@ -13,6 +13,6 @@ public class PurchaseOrderItemResponse {
     private String sku;
     private String skuName;
     private Integer quantity;
-    private BigDecimal unitPrice;
-    private BigDecimal lineTotal;     // quantity * unitPrice
+    private Long  unitPrice;
+    private Long  lineTotal;     // quantity * unitPrice
 }

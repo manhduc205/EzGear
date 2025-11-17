@@ -17,6 +17,6 @@ public class OrderItemRequest {
     private String productNameSnapshot;
     private String skuNameSnapshot;
     private Integer quantity;
-    private BigDecimal unitPrice;
-    private BigDecimal discountAmount;
+    private Long unitPrice;
+    private Long discountAmount;
 }

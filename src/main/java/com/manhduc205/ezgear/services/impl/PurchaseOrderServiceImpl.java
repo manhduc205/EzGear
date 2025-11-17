@@ -15,7 +15,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -159,13 +158,13 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         return purchaseOrderRepository.findAll().stream()
                 .map(po -> {
 
-                    // Tính lại subtotal
-                    BigDecimal subtotal = po.getItems().stream()
-                            .map(item -> item.getUnitPrice()
-                                    .multiply(BigDecimal.valueOf(item.getQuantity())))
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    // Tính lại subtotal (giả sử unitPrice là Long)
+                    long subtotal = po.getItems()
+                            .stream()
+                            .mapToLong(item -> item.getUnitPrice() * item.getQuantity())
+                            .sum();
 
-                    BigDecimal total = subtotal;
+                    long total = subtotal;
 
                     // Map từng item sang response
                     List<PurchaseOrderItemResponse> itemResponses = po.getItems().stream()
@@ -174,8 +173,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                                     .skuName(item.getProductSKU().getName())
                                     .quantity(item.getQuantity())
                                     .unitPrice(item.getUnitPrice())
-                                    .lineTotal(item.getUnitPrice()
-                                            .multiply(BigDecimal.valueOf(item.getQuantity())))
+                                    .lineTotal(item.getUnitPrice() * item.getQuantity())
                                     .build()
                             ).toList();
 
@@ -264,9 +262,9 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         po.getItems().addAll(newList);
 
         // tính lại subtotal và total
-        BigDecimal subtotal = po.getItems().stream()
-                .map(i -> i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long subtotal = po.getItems().stream()
+                .mapToLong(i -> i.getUnitPrice() * i.getQuantity())
+                .sum();
 
         po.setSubtotal(subtotal);
         po.setTotal(subtotal);

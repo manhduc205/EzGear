@@ -26,7 +26,7 @@ public class ProductSKU extends AbstractEntity {
     private String name;
 
     @Column(name = "price", precision = 15, scale = 2)
-    private BigDecimal price;
+    private Long price;
 
     @Column(name = "weight_gram")
     private Integer weightGram;

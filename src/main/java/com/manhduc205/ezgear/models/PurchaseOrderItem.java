@@ -29,5 +29,5 @@ public class PurchaseOrderItem {
     @Column(name = "quantity")
     private int quantity;
     @Column(name = "unit_price")
-    private BigDecimal unitPrice;
+    private Long  unitPrice;
 }

@@ -29,10 +29,10 @@ public class PurchaseOrder extends AbstractEntity{
     private String status;
 
     @Column(precision = 15, scale = 2)
-    private BigDecimal subtotal;
+    private Long  subtotal;
 
     @Column(precision = 15, scale = 2)
-    private BigDecimal total;
+    private Long  total;
 
     @Lob
     private String note;

@@ -30,10 +30,10 @@ public class OrderItem {
     private Integer quantity;
 
     @Column(name = "unit_price")
-    private BigDecimal unitPrice;
+    private Long unitPrice;
 
     @Column(name = "discount_amount")
-    private BigDecimal discountAmount;
+    private Long discountAmount;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")

@@ -11,7 +11,7 @@ public class CartItemResponse {
     private Long skuId;
     private String productName;
     private String imageUrl;
-    private BigDecimal price;
+    private Long price;
     private int quantity;
     private boolean selected;
 }

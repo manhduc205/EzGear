@@ -32,16 +32,16 @@ public class Order {
     private String status; // PENDING_CONFIRM, PROCESSING, COMPLETED...
 
     @Column(name = "subtotal")
-    private BigDecimal subtotal;
+    private Long subtotal;
 
     @Column(name = "discount_total")
-    private BigDecimal discountTotal;
+    private Long discountTotal;
 
     @Column(name = "shipping_fee")
-    private BigDecimal shippingFee;
+    private Long shippingFee;
 
     @Column(name = "grand_total")
-    private BigDecimal grandTotal;
+    private Long grandTotal;
 
     @Column(name = "shipping_address_id")
     private Long shippingAddressId;
