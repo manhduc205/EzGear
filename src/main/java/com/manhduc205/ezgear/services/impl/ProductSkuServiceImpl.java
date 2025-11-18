@@ -144,7 +144,6 @@ public class ProductSkuServiceImpl implements ProductSkuService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         return productSkuRepository.findAll(spec, pageable);
-
     }
 
     @Override
