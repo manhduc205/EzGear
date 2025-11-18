@@ -1,7 +1,7 @@
 package com.manhduc205.ezgear.controllers;
 
+import com.manhduc205.ezgear.dtos.CustomerAddressDTO;
 import com.manhduc205.ezgear.dtos.request.CustomerAddressRequest;
-import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.CustomerAddressService;
 import lombok.RequiredArgsConstructor;
@@ -20,37 +20,37 @@ public class CustomerAddressController {
 
     //Tạo địa chỉ mới cho user hiện tại
     @PostMapping
-    public ResponseEntity<?> createAddress(
+    public ResponseEntity<CustomerAddressDTO> createAddress(
             @AuthenticationPrincipal CustomUserDetails user,
             @RequestBody CustomerAddressRequest request
     ) {
         request.setUserId(user.getId());
-        CustomerAddress address = customerAddressService.createAddress(request);
+        CustomerAddressDTO address = customerAddressService.createAddress(request);
         return ResponseEntity.ok(address);
     }
 
     //Cập nhật địa chỉ
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateAddress(
+    public ResponseEntity<CustomerAddressDTO> updateAddress(
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long id,
             @RequestBody CustomerAddressRequest request) {
         request.setUserId(user.getId());
-        CustomerAddress updated = customerAddressService.updateAddress(id, request);
+        CustomerAddressDTO updated = customerAddressService.updateAddress(id, request);
         return ResponseEntity.ok(updated);
     }
 
     // Lấy danh sách địa chỉ của user hiện tại
     @GetMapping
-    public ResponseEntity<?> getAllAddresses(@AuthenticationPrincipal CustomUserDetails user) {
+    public ResponseEntity<List<CustomerAddressDTO>> getAllAddresses(@AuthenticationPrincipal CustomUserDetails user) {
 
-        List<CustomerAddress> addresses = customerAddressService.getAllByUserId(user.getId());
+        List<CustomerAddressDTO> addresses = customerAddressService.getAllByUserId(user.getId());
         return ResponseEntity.ok(addresses);
     }
 
     //Xóa địa chỉ
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteAddress(@AuthenticationPrincipal CustomUserDetails user, @PathVariable Long id) {
+    public ResponseEntity<Void> deleteAddress(@AuthenticationPrincipal CustomUserDetails user, @PathVariable Long id) {
         customerAddressService.deleteAddress(user.getId(), id);
         return ResponseEntity.noContent().build();
     }
