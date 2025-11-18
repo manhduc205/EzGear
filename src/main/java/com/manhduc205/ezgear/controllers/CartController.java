@@ -19,7 +19,7 @@ public class CartController {
     private final CartService cartService;
 
     @PostMapping
-    public ResponseEntity<CartCheckoutPreviewResponse> checkout(@RequestBody CartCheckoutRequest request,
+    public ResponseEntity<CartCheckoutPreviewResponse> cartCheckout(@RequestBody CartCheckoutRequest request,
                                                                 @AuthenticationPrincipal CustomUserDetails user) {
 
         Long userId = user.getId();

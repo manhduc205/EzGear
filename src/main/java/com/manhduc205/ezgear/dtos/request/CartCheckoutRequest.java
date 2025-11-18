@@ -7,4 +7,5 @@ import java.util.List;
 @Data
 public class CartCheckoutRequest {
     private List<CartItemRequest> cartItems;
+    private String voucherCode;
 }

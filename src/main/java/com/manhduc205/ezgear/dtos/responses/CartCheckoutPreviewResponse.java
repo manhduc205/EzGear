@@ -10,6 +10,6 @@ import java.util.List;
 public class CartCheckoutPreviewResponse {
     private List<CheckoutItemResponse> items;
     private Long subtotal;
+    private Long discount; // giảm giá tạm thời từ voucher
     private Long total;
 }
-

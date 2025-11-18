@@ -98,10 +98,23 @@ public class CartServiceImpl implements CartService {
             );
         }
 
+        // Áp dụng voucher tạm thời: nếu có nhập mã thì giảm cố định 10.000đ, không check DB
+        Long discount = 0L;
+        if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
+            discount = 10_000L; // TODO: sau này thay bằng logic thật từ bảng promotions
+            if (discount > subtotal) {
+                discount = subtotal;
+            }
+        }
+
+        Long total = subtotal - discount;
+        if (total < 0) total = 0L;
+
         return CartCheckoutPreviewResponse.builder()
                 .items(items)
                 .subtotal(subtotal)
-                .total(subtotal)
+                .discount(discount)
+                .total(total)
                 .build();
     }
 
