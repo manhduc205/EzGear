@@ -10,4 +10,5 @@ public class CheckoutRequest {
     private Long addressId;
     private String voucherCode;
     private String paymentMethod;
+    private Integer serviceId;
 }

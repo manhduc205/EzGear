@@ -17,6 +17,7 @@ import com.manhduc205.ezgear.services.*;
 import com.manhduc205.ezgear.shipping.dto.response.GhnShippingFeeResponse;
 import com.manhduc205.ezgear.shipping.service.ShippingFeeCalculatorService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CheckoutServiceImpl implements CheckoutService {
@@ -47,6 +49,10 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         if (req.getAddressId() == null) {
             throw new RequestException("Bạn chưa chọn địa chỉ giao hàng.");
+        }
+
+        if (req.getServiceId() == null) {
+            throw new RequestException("Bạn chưa chọn phương thức vận chuyển.");
         }
 
         CustomerAddress address = customerAddressRepository
@@ -108,8 +114,19 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
 
         Long firstSkuId = req.getCartItems().get(0).getSkuId();
-        GhnShippingFeeResponse feeRes = shippingFeeCalculatorService.calculateShippingFee(branchId, address.getId(), firstSkuId);
-        long shippingFee = feeRes.getData() != null && feeRes.getData().getTotal() != null ? feeRes.getData().getTotal() : 0L;
+        // Tính phí ship theo đúng serviceId FE gửi
+        GhnShippingFeeResponse feeRes = shippingFeeCalculatorService.calculateShippingFee(branchId, address.getId(), firstSkuId, req.getServiceId());
+        long shippingFee = 0L;
+        if (feeRes.getData() != null && feeRes.getData().getTotal() != null) {
+            shippingFee = feeRes.getData().getTotal();
+        }
+        log.info("branchId={}, addressId={}, firstSkuId={}, shippingFee={}",
+                branchId,
+                address.getId(),
+                firstSkuId,
+                shippingFee
+        );
+
 
         long discount = 0L;
         String voucherCode = "";
