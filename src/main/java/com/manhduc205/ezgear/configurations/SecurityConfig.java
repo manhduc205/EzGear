@@ -71,9 +71,10 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/ghn/**").permitAll()
+                        .requestMatchers("/shipping/**").permitAll()
                         .requestMatchers("/customer-addresses/**").permitAll()
                         .requestMatchers("/payment/**").permitAll()
+                        .requestMatchers("/checkout/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
