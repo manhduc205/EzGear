@@ -6,6 +6,7 @@ import com.manhduc205.ezgear.shipping.client.GhnRestClient;
 import com.manhduc205.ezgear.shipping.config.GhnProperties;
 import com.manhduc205.ezgear.shipping.dto.request.GhnAvailableServiceRequest;
 import com.manhduc205.ezgear.shipping.dto.request.GhnShippingFeeRequest;
+import com.manhduc205.ezgear.shipping.dto.response.AvailableServiceResponse;
 import com.manhduc205.ezgear.shipping.dto.response.GhnAvailableServiceResponse;
 import com.manhduc205.ezgear.shipping.dto.response.GhnShippingFeeResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,13 +27,55 @@ public class ShippingFeeCalculatorService {
     private final GhnProperties ghnProperties;
 
     /**
-     * 🧮 Tính phí GHN dựa trên:
+     * Tính phí GHN dựa trên:
      * - Chi nhánh gửi hàng (Branch)
      * - Địa chỉ nhận hàng (CustomerAddress)
      * - Thông tin sản phẩm (ProductSKU)
      */
-    public GhnShippingFeeResponse calculateShippingFee(Long branchId, Long addressId, Long skuId) {
+    public AvailableServiceResponse getAvailableServices(Long branchId, Long addressId) {
 
+        Branch branch = branchRepo.findById(branchId)
+                .orElseThrow(() -> new RuntimeException("Branch not found"));
+
+        CustomerAddress address = addressRepo.findById(addressId)
+                .orElseThrow(() -> new RuntimeException("Address not found"));
+
+        Location fromDistrict = findParentDistrict(branch.getLocation());
+        Location toDistrict = findParentDistrict(address.getLocation());
+
+        if (fromDistrict == null || toDistrict == null) {
+            throw new RuntimeException("District hierarchy invalid.");
+        }
+
+        // Gọi GHN available service API
+        GhnAvailableServiceRequest req = new GhnAvailableServiceRequest();
+        req.setFromDistrict(Integer.parseInt(fromDistrict.getGhnCode()));
+        req.setToDistrict(Integer.parseInt(toDistrict.getGhnCode()));
+        req.setShopId(Integer.parseInt(ghnProperties.getActiveShopId()));
+
+        GhnAvailableServiceResponse res = ghnAvailableService.getAvailableServices(req);
+
+        if (res == null || res.getData() == null || res.getData().isEmpty()) {
+            throw new RuntimeException("No GHN services found.");
+        }
+
+        // default nhanh, nếu không có thì lấy cái đầu
+        Integer defaultServiceId = res.getData().stream()
+                .filter(s -> "Nhanh".equalsIgnoreCase(s.getShortName()))
+                .map(GhnAvailableServiceResponse.ServiceData::getServiceId)
+                .findFirst()
+                .orElse(res.getData().get(0).getServiceId());
+
+        return AvailableServiceResponse.builder()
+                .defaultServiceId(defaultServiceId)
+                .services(res.getData())
+                .build();
+    }
+
+    public GhnShippingFeeResponse calculateShippingFee(Long branchId, Long addressId, Long skuId, Integer serviceId) {
+        if (serviceId == null) {
+            throw new RuntimeException("serviceId is required.");
+        }
         // Lấy chi nhánh gửi hàng
         Branch branch = branchRepo.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("Branch not found"));
@@ -61,24 +104,18 @@ public class ShippingFeeCalculatorService {
         int width  = sku.getWidthCm()  != null ? sku.getWidthCm()  : 10;
         int height = sku.getHeightCm() != null ? sku.getHeightCm() : 10;
 
-        GhnAvailableServiceRequest serviceReq = new GhnAvailableServiceRequest();
-        serviceReq.setFromDistrict(Integer.parseInt(fromDistrict.getGhnCode()));
-        serviceReq.setToDistrict(Integer.parseInt(toDistrict.getGhnCode()));
-        // shop id
-        serviceReq.setShopId(Integer.parseInt(ghnProperties.getActiveShopId()));
+//        GhnAvailableServiceRequest serviceReq = new GhnAvailableServiceRequest();
+//        serviceReq.setFromDistrict(Integer.parseInt(fromDistrict.getGhnCode()));
+//        serviceReq.setToDistrict(Integer.parseInt(toDistrict.getGhnCode()));
+//        // shop id
+//        serviceReq.setShopId(Integer.parseInt(ghnProperties.getActiveShopId()));
+//
+//        GhnAvailableServiceResponse serviceRes =
+//                ghnAvailableService.getAvailableServices(serviceReq);
 
-        GhnAvailableServiceResponse serviceRes =
-                ghnAvailableService.getAvailableServices(serviceReq);
-
-        if (serviceRes == null || serviceRes.getData() == null || serviceRes.getData().isEmpty()) {
-            throw new RuntimeException("No available GHN services found");
-        }
-
-        Integer serviceId = serviceRes.getData().stream()
-                .filter(s -> "Tiết kiệm".equalsIgnoreCase(s.getShortName()))
-                .map(GhnAvailableServiceResponse.ServiceData::getServiceId)
-                .findFirst()
-                .orElse(serviceRes.getData().get(0).getServiceId());
+//        if (serviceRes == null || serviceRes.getData() == null || serviceRes.getData().isEmpty()) {
+//            throw new RuntimeException("No available GHN services found");
+//        }
 
         // - Chuẩn bị request gửi GHN
         GhnShippingFeeRequest req = new GhnShippingFeeRequest();
@@ -103,7 +140,6 @@ public class ShippingFeeCalculatorService {
         }
 
         return response;
-
     }
 
 
