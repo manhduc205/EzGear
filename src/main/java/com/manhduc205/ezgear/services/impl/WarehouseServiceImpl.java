@@ -4,7 +4,6 @@ import com.manhduc205.ezgear.dtos.WarehouseDTO;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.Branch;
 import com.manhduc205.ezgear.models.CustomerAddress;
-import com.manhduc205.ezgear.models.Location;
 import com.manhduc205.ezgear.models.Warehouse;
 import com.manhduc205.ezgear.repositories.BranchRepository;
 import com.manhduc205.ezgear.repositories.WarehouseRepository;
@@ -12,7 +11,8 @@ import com.manhduc205.ezgear.services.WarehouseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +49,6 @@ public class WarehouseServiceImpl implements WarehouseService {
                 .toList();
     }
 
-
     @Override
     public Optional<Warehouse> getById(Long id) {
         return warehouseRepository.findById(id);
@@ -66,9 +65,15 @@ public class WarehouseServiceImpl implements WarehouseService {
             warehouse.setBranch(branch);
         }
 
-        warehouse.setName(dto.getName());
-        warehouse.setCode(dto.getCode());
-        warehouse.setIsActive(dto.getIsActive());
+        if (dto.getName() != null) {
+            warehouse.setName(dto.getName());
+        }
+        if (dto.getCode() != null) {
+            warehouse.setCode(dto.getCode());
+        }
+        if (dto.getIsActive() != null) {
+            warehouse.setIsActive(dto.getIsActive());
+        }
 
         return warehouseRepository.save(warehouse);
     }
@@ -78,36 +83,44 @@ public class WarehouseServiceImpl implements WarehouseService {
         warehouseRepository.deleteById(id);
     }
 
-    public Long getWarehouseIdByAddress(CustomerAddress address) {
-        if (address == null || address.getLocation() == null) {
-            throw new RequestException("Địa chỉ giao hàng không hợp lệ hoặc thiếu thông tin địa giới.");
+    /**
+     * Chọn kho giao hàng dựa trên địa chỉ khách:
+     *  - Ưu tiên chi nhánh cùng quận (district)
+     *  - Nếu không có, fallback chi nhánh cùng tỉnh (province)
+     *  - Sau đó lấy kho đang hoạt động đầu tiên của chi nhánh đó
+     */
+    @Override
+    public Warehouse resolveWarehouseForAddress(CustomerAddress address) {
+        if (address == null) {
+            throw new RequestException("Địa chỉ giao hàng không hợp lệ (null).");
         }
 
-        // Lấy ra location hiện tại (phường/xã)
-        Location location = address.getLocation();
+        Integer provinceId = address.getProvinceId();
+        Integer districtId = address.getDistrictId();
 
-        // Truy ngược lên tỉnh/thành phố
-        Location province = findParentProvince(location);
-        if (province == null) {
-            throw new RequestException("Không tìm thấy tỉnh/thành cho địa chỉ này.");
+        if (provinceId == null || districtId == null) {
+            throw new RequestException("Địa chỉ giao hàng thiếu thông tin tỉnh / quận.");
         }
 
-        // Tìm chi nhánh thuộc tỉnh đó
-        Branch branch = branchRepository.findByLocationCode(province.getCode())
-                .orElseThrow(() -> new RequestException("Không tìm thấy chi nhánh cho tỉnh: " + province.getName()));
+        // 1) Tìm chi nhánh cùng quận
+        Optional<Branch> branchOpt = branchRepository
+                .findFirstByDistrictIdAndIsActiveTrue(districtId);
 
-        //Lấy kho đang hoạt động thuộc chi nhánh
-        Warehouse warehouse = warehouseRepository.findFirstByBranchIdAndIsActiveTrue(branch.getId())
-                .orElseThrow(() -> new RequestException("Không có kho hoạt động thuộc chi nhánh: " + branch.getName()));
+        Branch branch = branchOpt.orElseGet(() ->
+                // 2) Fallback: tìm chi nhánh cùng tỉnh
+                branchRepository.findFirstByProvinceIdAndIsActiveTrue(provinceId)
+                        .orElseThrow(() -> new RequestException(
+                                "Không tìm thấy chi nhánh phù hợp cho tỉnh " + provinceId
+                        ))
+        );
 
-        return warehouse.getId();
+        // 3) Lấy kho đang hoạt động thuộc chi nhánh
+        Warehouse warehouse = warehouseRepository
+                .findFirstByBranchIdAndIsActiveTrue(branch.getId())
+                .orElseThrow(() -> new RequestException(
+                        "Không có kho hoạt động thuộc chi nhánh: " + branch.getName()
+                ));
+
+        return warehouse;
     }
-
-    private Location findParentProvince(Location loc) {
-        if (loc == null) return null;
-        if (loc.getLevel() == Location.Level.PROVINCE) return loc;
-        return findParentProvince(loc.getParent());
-    }
-
-
 }

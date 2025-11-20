@@ -2,8 +2,9 @@ package com.manhduc205.ezgear.repositories;
 
 import com.manhduc205.ezgear.models.Warehouse;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.*;
+
+import java.util.List;
 
 public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
-    Optional<Warehouse> findFirstByBranchIdAndIsActiveTrue(Long branchId);
+    List<Warehouse> findFirstByBranchIdAndIsActiveTrue(Long branchId);
 }
