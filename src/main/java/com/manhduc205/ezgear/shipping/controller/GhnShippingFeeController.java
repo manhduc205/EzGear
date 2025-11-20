@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -16,6 +17,7 @@ import java.util.Map;
 public class GhnShippingFeeController {
 
     private final ShippingFeeCalculatorService shippingFeeService;
+
     @PostMapping("/fee")
     public ResponseEntity<?> calculateFee(@RequestBody ShippingFeeRequest request) {
         try {
@@ -25,11 +27,13 @@ public class GhnShippingFeeController {
             Integer serviceId = request.getServiceId();
 
             if (branchId == null || addressId == null || skuId == null || serviceId == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "code", 400,
-                        "message", "Missing fields: branchId, addressId, skuId, serviceId",
-                        "data", null
-                ));
+
+                Map<String, Object> body = new HashMap<>();
+                body.put("code", 400);
+                body.put("message", "Missing fields: branchId, addressId, skuId, serviceId");
+                body.put("data", null);
+
+                return ResponseEntity.badRequest().body(body);
             }
 
             GhnShippingFeeResponse response =
@@ -38,13 +42,16 @@ public class GhnShippingFeeController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of(
-                    "code", 500,
-                    "message", e.getMessage(),
-                    "data", null
-            ));
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("code", 500);
+            body.put("message", e.getMessage());
+            body.put("data", null);
+
+            return ResponseEntity.internalServerError().body(body);
         }
     }
+
     @PostMapping("/available-services")
     public ResponseEntity<?> getServices(@RequestBody ShippingAvailableServiceRequest req) {
         try {
@@ -52,23 +59,26 @@ public class GhnShippingFeeController {
             Long addressId = req.getAddressId();
 
             if (branchId == null || addressId == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "code", 400,
-                        "message", "Missing fields: branchId, addressId",
-                        "data", null
-                ));
+
+                Map<String, Object> body = new HashMap<>();
+                body.put("code", 400);
+                body.put("message", "Missing fields: branchId, addressId");
+                body.put("data", null);
+
+                return ResponseEntity.badRequest().body(body);
             }
 
             var res = shippingFeeService.getAvailableServices(branchId, addressId);
             return ResponseEntity.ok(res);
 
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of(
-                    "code", 500,
-                    "message", e.getMessage(),
-                    "data", null
-            ));
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("code", 500);
+            body.put("message", e.getMessage());
+            body.put("data", null);
+
+            return ResponseEntity.internalServerError().body(body);
         }
     }
-
 }

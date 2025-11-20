@@ -43,9 +43,9 @@ public class Location {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    @OneToMany(mappedBy = "location")
-    @JsonIgnore
-    private List<Branch> branches;
+//    @OneToMany(mappedBy = "location")
+//    @JsonIgnore
+//    private List<Branch> branches;
 
     public enum Level {
         PROVINCE,
