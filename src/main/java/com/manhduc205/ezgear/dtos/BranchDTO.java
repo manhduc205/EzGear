@@ -11,7 +11,9 @@ public class BranchDTO {
     private Long id;
     private String code;
     private String name;
-    private String locationCode;
+    private Integer provinceId;
+    private Integer districtId;
+    private String wardCode;
     private String addressLine;
     private String phone;
     private Boolean isActive;

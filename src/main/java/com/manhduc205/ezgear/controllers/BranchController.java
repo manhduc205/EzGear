@@ -16,6 +16,7 @@ import java.util.List;
 public class BranchController {
 
     private final BranchService branchService;
+
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     @PostMapping
     public ResponseEntity<Branch> create(@RequestBody BranchDTO dto) {
@@ -47,4 +48,3 @@ public class BranchController {
         return ResponseEntity.noContent().build();
     }
 }
-
