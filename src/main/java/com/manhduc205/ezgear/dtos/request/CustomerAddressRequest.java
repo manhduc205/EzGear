@@ -7,7 +7,9 @@ public class CustomerAddressRequest {
     private Long userId;
     private String receiverName;
     private String receiverPhone;
-    private String locationCode;
+    private Integer provinceId;
+    private Integer districtId;
+    private String wardCode;
     private String addressLine;
     private String label;
     private Boolean isDefault;

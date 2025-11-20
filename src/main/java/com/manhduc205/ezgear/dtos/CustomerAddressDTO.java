@@ -9,7 +9,13 @@ import lombok.*;
 @Builder
 public class CustomerAddressDTO {
     private Long id;
-    private String fullAddress;
-    private boolean isDefault;
-}
 
+    private boolean isDefault;
+    private Integer provinceId;
+    private Integer districtId;
+    private String wardCode;
+    private String addressLine;
+    private String receiverName;
+    private String receiverPhone;
+    private String label;
+}
