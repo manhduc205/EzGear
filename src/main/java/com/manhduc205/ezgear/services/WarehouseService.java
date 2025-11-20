@@ -13,4 +13,5 @@ public interface WarehouseService {
     Warehouse updateWarehouse(Long id, WarehouseDTO dto);
     void delete(Long id);
     Warehouse resolveWarehouseForAddress(CustomerAddress address);
+    Long getWarehouseIdByAddress(CustomerAddress address);
 }

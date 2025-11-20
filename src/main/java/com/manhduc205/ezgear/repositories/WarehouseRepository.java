@@ -4,7 +4,8 @@ import com.manhduc205.ezgear.models.Warehouse;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface WarehouseRepository extends JpaRepository<Warehouse, Long> {
-    List<Warehouse> findFirstByBranchIdAndIsActiveTrue(Long branchId);
+    Optional<Warehouse> findFirstByBranchIdAndIsActiveTrue(Long branchId);
 }

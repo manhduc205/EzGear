@@ -102,19 +102,19 @@ public class WarehouseServiceImpl implements WarehouseService {
             throw new RequestException("Địa chỉ giao hàng thiếu thông tin tỉnh / quận.");
         }
 
-        // 1) Tìm chi nhánh cùng quận
+        // chi nhánh cùng quận
         Optional<Branch> branchOpt = branchRepository
                 .findFirstByDistrictIdAndIsActiveTrue(districtId);
 
         Branch branch = branchOpt.orElseGet(() ->
-                // 2) Fallback: tìm chi nhánh cùng tỉnh
+                // Fallback chi nhánh cùng tỉnh
                 branchRepository.findFirstByProvinceIdAndIsActiveTrue(provinceId)
                         .orElseThrow(() -> new RequestException(
                                 "Không tìm thấy chi nhánh phù hợp cho tỉnh " + provinceId
                         ))
         );
 
-        // 3) Lấy kho đang hoạt động thuộc chi nhánh
+        //Lấy kho đang hoạt động thuộc chi nhánh
         Warehouse warehouse = warehouseRepository
                 .findFirstByBranchIdAndIsActiveTrue(branch.getId())
                 .orElseThrow(() -> new RequestException(
@@ -122,5 +122,11 @@ public class WarehouseServiceImpl implements WarehouseService {
                 ));
 
         return warehouse;
+    }
+
+    @Override
+    public Long getWarehouseIdByAddress(CustomerAddress address) {
+        Warehouse warehouse = resolveWarehouseForAddress(address);
+        return warehouse != null ? warehouse.getId() : null;
     }
 }
