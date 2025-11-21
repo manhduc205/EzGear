@@ -11,9 +11,6 @@ public class CheckoutResponse {
     private String paymentMethod;
     private VoucherInfo voucher;
     private WarehouseInfo warehouse;
-    private String orderCode;
-    private String paymentUrl;
-    private String message;
 }
 
 

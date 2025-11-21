@@ -2,15 +2,12 @@ package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.CheckoutRequest;
-import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 import com.manhduc205.ezgear.dtos.responses.*;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.models.Warehouse;
-import com.manhduc205.ezgear.models.order.Order;
-import com.manhduc205.ezgear.models.order.OrderItem;
 import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
 import com.manhduc205.ezgear.repositories.OrderRepository;
 import com.manhduc205.ezgear.repositories.ProductSkuRepository;
@@ -37,8 +34,6 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final ProductSkuRepository productSkuRepository;
     private final CustomerAddressRepository customerAddressRepository;
     private final ShippingFeeCalculatorService shippingFeeCalculatorService;
-    private final OrderRepository orderRepository;
-    private final PaymentService paymentService;
     private final CustomerAddressService customerAddressService;
 
     @Override
@@ -56,12 +51,12 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new RequestException("Bạn chưa chọn phương thức vận chuyển.");
         }
 
-        // 1) Lấy địa chỉ
+        //Lấy địa chỉ
         CustomerAddress address = customerAddressRepository
                 .findByIdAndUserId(req.getAddressId(), userId)
                 .orElseThrow(() -> new RequestException("Địa chỉ giao hàng không hợp lệ."));
 
-        // 2) Chọn kho phù hợp từ địa chỉ
+        // lấy kho phù hợp từ địa chỉ
         Warehouse warehouse = warehouseService.resolveWarehouseForAddress(address);
         Long warehouseId = warehouse.getId();
         Long branchId = (warehouse.getBranch() != null) ? warehouse.getBranch().getId() : null;
@@ -70,7 +65,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             throw new RequestException("Kho không gắn với chi nhánh hợp lệ.");
         }
 
-        // 3) Kiểm tra tồn kho theo kho (warehouseId)
+        //Kiểm tra tồn kho theo kho
         for (CartItemRequest item : req.getCartItems()) {
             if (item.getQuantity() == null || item.getQuantity() <= 0) {
                 throw new RequestException("Số lượng không hợp lệ cho SKU " + item.getSkuId());
@@ -84,14 +79,17 @@ public class CheckoutServiceImpl implements CheckoutService {
             }
         }
 
-        // 4) Tính subtotal + build orderItems + item preview
+        // Tính subtotal + build orderItems + item preview
         long itemsSubtotal = 0L;
-        List<OrderItem> orderItems = new ArrayList<>();
         List<CheckoutItemPreviewResponse> itemPreviews = new ArrayList<>();
 
         for (CartItemRequest ci : req.getCartItems()) {
             ProductSKU sku = productSkuRepository.findById(ci.getSkuId())
                     .orElseThrow(() -> new RequestException("SKU " + ci.getSkuId() + " không tồn tại."));
+
+            if (ci.getQuantity() == null || ci.getQuantity() <= 0) {
+                throw new RequestException("Số lượng không hợp lệ cho SKU " + ci.getSkuId());
+            }
 
             Long unitPrice = sku.getPrice() != null ? sku.getPrice() : 0L;
             long lineTotal = unitPrice * ci.getQuantity();
@@ -99,20 +97,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
             Product product = sku.getProduct();
 
-            OrderItem oi = OrderItem.builder()
-                    .skuId(sku.getId())
-                    .productId(product != null ? product.getId() : null)
-                    .productNameSnapshot(product != null ? product.getName() : null)
-                    .skuNameSnapshot(sku.getName())
-                    .imageUrlSnapshot(product != null ? product.getImageUrl() : null)
-                    .quantity(ci.getQuantity())
-                    .unitPrice(unitPrice)
-                    .discountAmount(0L)
-                    .lineTotal(lineTotal)
-                    .build();
-            orderItems.add(oi);
-
-            itemPreviews.add(CheckoutItemPreviewResponse.builder()
+            CheckoutItemPreviewResponse previewItem = CheckoutItemPreviewResponse.builder()
                     .skuId(sku.getId())
                     .productName(product != null ? product.getName() : null)
                     .skuName(sku.getName())
@@ -121,10 +106,11 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .quantity(ci.getQuantity())
                     .lineTotal(lineTotal)
                     .selected(true)
-                    .build());
+                    .build();
+            itemPreviews.add(previewItem);
         }
 
-        // 5) Tính phí ship theo GHN (dùng branchId làm điểm gửi)
+        // Tính phí ship theo GHN dùng branchId nơi gửi hàng
         Long firstSkuId = req.getCartItems().get(0).getSkuId();
         GhnShippingFeeResponse feeRes = shippingFeeCalculatorService
                 .calculateShippingFee(branchId, address.getId(), firstSkuId, req.getServiceId());
@@ -134,15 +120,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             shippingFee = feeRes.getData().getTotal();
         }
 
-        log.info("branchId={}, warehouseId={}, addressId={}, firstSkuId={}, shippingFee={}",
-                branchId,
-                warehouseId,
-                address.getId(),
-                firstSkuId,
-                shippingFee
-        );
-
-        // 6) Voucher (tạm hardcode)
+        // Voucher (tạm hardcode)
         long discount = 0L;
         String voucherCode = "";
         if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
@@ -154,52 +132,8 @@ public class CheckoutServiceImpl implements CheckoutService {
         long grandTotal = itemsSubtotal + shippingFee - discount;
         if (grandTotal < 0) grandTotal = 0;
 
-        // 7) Tạo Order
-        String orderCode = generateOrderCode();
-        Order order = Order.builder()
-                .code(orderCode)
-                .userId(userId)
-                .branchId(branchId)              // chi nhánh xuất hàng
-                .status("PENDING_CONFIRM")
-                .paymentStatus("UNPAID")
-                .subtotal(itemsSubtotal)
-                .discountTotal(discount)
-                .shippingFee(shippingFee)
-                .grandTotal(grandTotal)
-                .shippingAddressId(address.getId())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        orderItems.forEach(oi -> oi.setOrder(order));
-        order.setItems(orderItems);
-        orderRepository.save(order);
-
-        // 8) Xử lý thanh toán
-        String method = req.getPaymentMethod() != null
-                ? req.getPaymentMethod().toUpperCase()
-                : "COD";
-
-        ProductPaymentRequest payReq = new ProductPaymentRequest();
-        payReq.setOrderCode(orderCode);
-        payReq.setAmount(grandTotal);
-
-        String paymentUrl = null;
-        if ("VNPAY".equals(method)) {
-            VNPayResponse vnpRes = paymentService.createPaymentVNPay(payReq);
-            paymentUrl = vnpRes.getPaymentUrl();
-            order.setPaymentStatus("PENDING");
-            orderRepository.save(order);
-        } else if ("COD".equals(method)) {
-            paymentService.createCodPayment(payReq);
-            order.setStatus("PENDING_CONFIRM");
-            order.setPaymentStatus("PENDING");
-            orderRepository.save(order);
-        } else {
-            throw new RequestException("Phương thức thanh toán không được hỗ trợ.");
-        }
-
-        OrderPreviewResponse preview = OrderPreviewResponse.builder()
+        // Build các block thông tin trả về cho FE
+        OrderPreviewResponse orderPreview = OrderPreviewResponse.builder()
                 .items(itemPreviews)
                 .subtotal(itemsSubtotal)
                 .discount(discount)
@@ -209,7 +143,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         ShippingAddressInfo addressInfo = ShippingAddressInfo.builder()
                 .id(address.getId())
-                .fullAddress(customerAddressService.getFullAddress(address)) // hiện tại có thể = addressLine
+                .fullAddress(customerAddressService.getFullAddress(address))
                 .isDefault(Boolean.TRUE.equals(address.getIsDefault()))
                 .build();
 
@@ -223,21 +157,18 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .name(warehouse.getName())
                 .build();
 
+        String paymentMethod = (req.getPaymentMethod() != null)
+                ? req.getPaymentMethod().toUpperCase()
+                : "COD";
+
+        //preview
         return CheckoutResponse.builder()
-                .orderCode(orderCode)
-                .orderPreview(preview)
+                .orderPreview(orderPreview)
                 .shippingAddress(addressInfo)
                 .voucher(voucherInfo)
                 .warehouse(warehouseInfo)
-                .paymentMethod(method)
-                .paymentUrl(paymentUrl)
-                .message("VNPAY".equals(method)
-                        ? "Vui lòng chuyển hướng tới cổng thanh toán."
-                        : "Đặt hàng thành công. Thanh toán khi nhận hàng.")
+                .paymentMethod(paymentMethod)
                 .build();
     }
 
-    private String generateOrderCode() {
-        return System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 5).toUpperCase();
-    }
 }
