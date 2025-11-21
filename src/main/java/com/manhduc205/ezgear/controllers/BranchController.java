@@ -17,7 +17,7 @@ public class BranchController {
 
     private final BranchService branchService;
 
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PostMapping
     public ResponseEntity<Branch> create(@RequestBody BranchDTO dto) {
         return ResponseEntity.ok(branchService.createBranch(dto));
@@ -35,13 +35,13 @@ public class BranchController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Branch> update(@PathVariable Long id, @RequestBody BranchDTO dto) {
         return ResponseEntity.ok(branchService.updateBranch(id, dto));
     }
 
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         branchService.delete(id);
