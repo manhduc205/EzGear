@@ -16,7 +16,10 @@ import com.manhduc205.ezgear.models.cart.CartItem;
 import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
 import com.manhduc205.ezgear.repositories.ProductSkuRepository;
 import com.manhduc205.ezgear.repositories.cart.CartRepository;
-import com.manhduc205.ezgear.services.*;
+import com.manhduc205.ezgear.services.CartService;
+import com.manhduc205.ezgear.services.ProductSkuService;
+import com.manhduc205.ezgear.services.ProductStockService;
+import com.manhduc205.ezgear.services.WarehouseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-// dùng concurentHashMap an toàn hơn với đa luồng, tránh race condition
+
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl implements CartService {
@@ -36,26 +39,30 @@ public class CartServiceImpl implements CartService {
     private final WarehouseService warehouseService;
     private final ProductSkuService productSkuService;
     private final CustomerAddressRepository customerAddressRepository;
-
-    private final Map<Long, Long> warehouseCache = new ConcurrentHashMap<>();
     private final ProductSkuRepository productSkuRepository;
 
-    @Transactional
+    // Cache warehouseId theo addressId để đỡ gọi lại logic chọn kho nhiều lần
+    private final Map<Long, Long> warehouseCache = new ConcurrentHashMap<>();
+
+    // ======================= PREVIEW CHECKOUT ======================= //
+
+    @Override
+    @Transactional(readOnly = true)
     public CartCheckoutPreviewResponse previewCheckout(CartCheckoutRequest req, Long userId) {
 
         if (req.getCartItems() == null || req.getCartItems().isEmpty()) {
             throw new RequestException("Giỏ hàng trống, không thể thanh toán.");
         }
 
-
+        // Lấy địa chỉ mặc định của user
         CustomerAddress address = customerAddressRepository
                 .findByUserIdAndIsDefaultTrue(userId)
-                .orElseThrow(() -> new RequestException("Bạn chưa thiết lập địa chỉ mặc định"));
+                .orElseThrow(() -> new RequestException("Bạn chưa thiết lập địa chỉ mặc định."));
 
-        //Lấy kho theo địa chỉ
-        Long warehouseId = warehouseService.getWarehouseIdByAddress(address);
+        // Lấy warehouseId theo địa chỉ (có cache)
+        Long warehouseId = resolveWarehouseId(address);
 
-        // Ktra tồn kho từng SKU
+        // Kiểm tra tồn kho từng SKU
         for (CartItemRequest item : req.getCartItems()) {
 
             if (item.getQuantity() == null || item.getQuantity() <= 0) {
@@ -66,15 +73,15 @@ public class CartServiceImpl implements CartService {
 
             if (available < item.getQuantity()) {
                 throw new RequestException(
-                        "Sản phẩm SKU " + item.getSkuId() + " không đủ tồn kho (còn " + available + ")."
+                        "Sản phẩm SKU " + item.getSkuId()
+                                + " không đủ tồn kho (còn " + available + ")."
                 );
             }
         }
 
-        //  subtotal từ giá SKU trong DB
-        Long subtotal = 0L;
-
-        List<CheckoutItemResponse> items  = new ArrayList<>();
+        // Tính subtotal từ giá SKU trong DB
+        long subtotal = 0L;
+        List<CheckoutItemResponse> items = new ArrayList<>();
 
         for (CartItemRequest ci : req.getCartItems()) {
 
@@ -82,14 +89,15 @@ public class CartServiceImpl implements CartService {
                     .orElseThrow(() -> new RequestException("SKU " + ci.getSkuId() + " không tồn tại."));
 
             Long unitPrice = sku.getPrice() != null ? sku.getPrice() : 0L;
-
-            Long lineTotal = unitPrice * ci.getQuantity();
+            long lineTotal = unitPrice * ci.getQuantity();
             subtotal += lineTotal;
+
+            Product product = sku.getProduct();
 
             items.add(
                     CheckoutItemResponse.builder()
                             .skuId(sku.getId())
-                            .productName(sku.getProduct().getName())
+                            .productName(product != null ? product.getName() : null)
                             .skuName(sku.getName())
                             .quantity(ci.getQuantity())
                             .unitPrice(unitPrice)
@@ -98,16 +106,16 @@ public class CartServiceImpl implements CartService {
             );
         }
 
-        // Áp dụng voucher tạm thời: nếu có nhập mã thì giảm cố định 10.000đ, không check DB
-        Long discount = 0L;
+        // Tạm: voucher giảm cố định 10k nếu có nhập
+        long discount = 0L;
         if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
-            discount = 10_000L; // TODO: sau này thay bằng logic thật từ bảng promotions
+            discount = 10_000L;
             if (discount > subtotal) {
                 discount = subtotal;
             }
         }
 
-        Long total = subtotal - discount;
+        long total = subtotal - discount;
         if (total < 0) total = 0L;
 
         return CartCheckoutPreviewResponse.builder()
@@ -118,6 +126,10 @@ public class CartServiceImpl implements CartService {
                 .build();
     }
 
+    // ======================= CRUD GIỎ HÀNG ======================= //
+
+    @Override
+    @Transactional(readOnly = true)
     public CartResponse getCart(Long userId) {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseGet(() -> cartRepository.save(
@@ -132,22 +144,25 @@ public class CartServiceImpl implements CartService {
         return buildCartResponse(cart);
     }
 
+    @Override
+    @Transactional
     public CartResponse addItem(Long userId, AddToCartRequest req) {
 
-        // ---- Kiểm tra tồn kho (số lượng muốn thêm) ----
+        // Kiểm tra tồn kho theo số lượng muốn thêm
         validateStock(userId, req.getSkuId(), req.getQuantity());
 
-        // ---- Tạo giỏ nếu chưa có ----
+        // Tạo giỏ nếu chưa có
         Cart cart = cartRepository.findByUserId(userId)
-                .orElseGet(() -> cartRepository.save(Cart.builder()
-                        .userId(userId)
-                        .items(new ArrayList<>())
-                        .createdAt(LocalDateTime.now())
-                        .updatedAt(LocalDateTime.now())
-                        .build()
+                .orElseGet(() -> cartRepository.save(
+                        Cart.builder()
+                                .userId(userId)
+                                .items(new ArrayList<>())
+                                .createdAt(LocalDateTime.now())
+                                .updatedAt(LocalDateTime.now())
+                                .build()
                 ));
 
-        // ---- Tìm xem SKU đã có trong cart chưa ----
+        // Tìm SKU đã có trong cart chưa
         CartItem existing = cart.getItems().stream()
                 .filter(i -> i.getSkuId().equals(req.getSkuId()))
                 .findFirst()
@@ -155,7 +170,7 @@ public class CartServiceImpl implements CartService {
 
         int newQty = (existing != null ? existing.getQuantity() : 0) + req.getQuantity();
 
-        // ---- Kiểm tra tồn kho tổng quantity sau khi cộng dồn ----
+        // Kiểm tra tồn kho với tổng quantity mới
         validateStock(userId, req.getSkuId(), newQty);
 
         if (existing != null) {
@@ -170,11 +185,14 @@ public class CartServiceImpl implements CartService {
         return buildCartResponse(cart);
     }
 
+    @Override
+    @Transactional
     public CartResponse updateQuantity(Long userId, Long skuId, int qty) {
 
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new RequestException("Giỏ hàng rỗng"));
 
+        // Kiểm tra tồn kho với số lượng mới
         validateStock(userId, skuId, qty);
 
         CartItem item = cart.getItems().stream()
@@ -189,6 +207,8 @@ public class CartServiceImpl implements CartService {
         return buildCartResponse(cart);
     }
 
+    @Override
+    @Transactional
     public CartResponse removeItem(Long userId, Long skuId) {
 
         Cart cart = cartRepository.findByUserId(userId)
@@ -196,8 +216,9 @@ public class CartServiceImpl implements CartService {
 
         boolean removed = cart.getItems().removeIf(i -> i.getSkuId().equals(skuId));
 
-        if (!removed)
-            throw new RequestException("Không tìm thấy sản phẩm cần xoá");
+        if (!removed) {
+            throw new RequestException("Không tìm thấy sản phẩm cần xoá.");
+        }
 
         cart.setUpdatedAt(LocalDateTime.now());
         cartRepository.save(cart);
@@ -205,16 +226,18 @@ public class CartServiceImpl implements CartService {
         return buildCartResponse(cart);
     }
 
-
+    @Override
+    @Transactional
     public void clearCart(Long userId) {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new RequestException("Giỏ hàng rỗng"));
+
         cart.getItems().clear();
+        cart.setUpdatedAt(LocalDateTime.now());
         cartRepository.save(cart);
     }
 
-
-    //ktra tồn kho
+    // ===================== KIỂM TRA TỒN KHO ===================== //
 
     private void validateStock(Long userId, Long skuId, int quantity) {
 
@@ -222,15 +245,30 @@ public class CartServiceImpl implements CartService {
 
         CustomerAddress addr = customerAddressRepository
                 .findByUserIdAndIsDefaultTrue(userId)
-                .orElseThrow(() -> new RequestException("Bạn chưa thiết lập địa chỉ mặc định"));
+                .orElseThrow(() -> new RequestException("Bạn chưa thiết lập địa chỉ mặc định."));
 
-        Long warehouseId = warehouseService.getWarehouseIdByAddress(addr);
+        Long warehouseId = resolveWarehouseId(addr);
 
         int available = productStockService.getAvailable(skuId, warehouseId);
 
-        if (quantity > available)
+        if (quantity > available) {
             throw new RequestException("Không đủ tồn kho. Chỉ còn " + available + " sản phẩm.");
+        }
     }
+
+    // Cache warehouseId theo addressId để đỡ tính lại nhiều lần
+    private Long resolveWarehouseId(CustomerAddress address) {
+        if (address == null || address.getId() == null) {
+            throw new RequestException("Địa chỉ giao hàng không hợp lệ.");
+        }
+
+        Long addressId = address.getId();
+
+        return warehouseCache.computeIfAbsent(addressId, id ->
+                warehouseService.getWarehouseIdByAddress(address)
+        );
+    }
+
     // ===================== MAP CART → RESPONSE ===================== //
 
     private CartResponse buildCartResponse(Cart cart) {
@@ -238,12 +276,12 @@ public class CartServiceImpl implements CartService {
         List<CartItemResponse> items = cart.getItems().stream().map(ci -> {
 
             ProductSKU sku = productSkuService.getById(ci.getSkuId());
-
             Product product = sku.getProduct();
+
             return CartItemResponse.builder()
                     .skuId(ci.getSkuId())
-                    .productName(sku.getName())
-                    .imageUrl(product.getImageUrl())
+                    .productName(product != null ? product.getName() : sku.getName())
+                    .imageUrl(product != null ? product.getImageUrl() : null)
                     .price(sku.getPrice())
                     .quantity(ci.getQuantity())
                     .selected(ci.getSelected())
@@ -256,6 +294,4 @@ public class CartServiceImpl implements CartService {
                 .items(items)
                 .build();
     }
-
-
 }
