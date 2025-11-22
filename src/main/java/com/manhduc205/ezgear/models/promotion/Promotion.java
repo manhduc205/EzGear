@@ -1,4 +1,4 @@
-package com.manhduc205.ezgear.models;
+package com.manhduc205.ezgear.models.promotion;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,7 +20,7 @@ public class Promotion {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String code; // ví dụ: EZ10, FREESHIP50K
+    private String code;
 
     private String type; // ORDER, PRODUCT, SHIPPING
 
@@ -28,13 +28,13 @@ public class Promotion {
     private String discountType; // PERCENT, FIXED
 
     @Column(name = "discount_value")
-    private BigDecimal discountValue;
+    private Long discountValue;
 
     @Column(name = "min_order")
-    private BigDecimal minOrder;
+    private Long minOrder;
 
     @Column(name = "max_discount")
-    private BigDecimal maxDiscount;
+    private Long maxDiscount;
 
     @Column(name = "start_at")
     private LocalDateTime startAt;

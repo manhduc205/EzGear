@@ -13,7 +13,7 @@ import java.util.List;
 @RequestMapping("/stocks")
 @RestController
 @RequiredArgsConstructor
-public class ProducStockController {
+public class ProductStockController {
     private final ProductStockService productStockService;
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
