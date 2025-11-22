@@ -7,6 +7,8 @@ import lombok.Data;
 @Data
 public class CheckoutItemPreviewResponse {
     private Long skuId;
+    private Long productId;
+    private Long categoryId;
     private String productName;
     private String skuName;
     private String imageUrl;

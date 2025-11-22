@@ -2,7 +2,10 @@ package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.CheckoutRequest;
+import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
+import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherRequest;
 import com.manhduc205.ezgear.dtos.responses.*;
+import com.manhduc205.ezgear.dtos.responses.voucher.ApplyVoucherResponse;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.models.Product;
@@ -35,6 +38,7 @@ public class CheckoutServiceImpl implements CheckoutService {
     private final CustomerAddressRepository customerAddressRepository;
     private final ShippingFeeCalculatorService shippingFeeCalculatorService;
     private final CustomerAddressService customerAddressService;
+    private final VoucherService voucherService;
 
     @Override
     @Transactional
@@ -99,6 +103,8 @@ public class CheckoutServiceImpl implements CheckoutService {
 
             CheckoutItemPreviewResponse previewItem = CheckoutItemPreviewResponse.builder()
                     .skuId(sku.getId())
+                    .categoryId(product.getCategory().getId())
+                    .productId(product.getId())
                     .productName(product != null ? product.getName() : null)
                     .skuName(sku.getName())
                     .imageUrl(product != null ? product.getImageUrl() : null)
@@ -121,13 +127,45 @@ public class CheckoutServiceImpl implements CheckoutService {
         }
 
         // Voucher (tạm hardcode)
+        // Voucher: BE tự tính lại để tránh gian lận
+        // =======================
+//  VOUCHER (backend tự tính, không tin FE)
+// =======================
         long discount = 0L;
-        String voucherCode = "";
+        String voucherCode = null;
+
         if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
-            // TODO: sau này check bảng Promotion
-            discount = 50_000L;
-            voucherCode = req.getVoucherCode();
+            voucherCode = req.getVoucherCode().trim();
+
+            // Build request cho VoucherService dựa trên dữ liệu checkout hiện tại
+            ApplyVoucherRequest voucherReq = new ApplyVoucherRequest();
+            voucherReq.setCode(voucherCode);
+            voucherReq.setSubtotal(itemsSubtotal);
+            voucherReq.setShippingFee(shippingFee);
+
+            List<ApplyVoucherItemRequest> voucherItems = new ArrayList<>();
+            for (CheckoutItemPreviewResponse preview : itemPreviews) {
+                ApplyVoucherItemRequest itemReq = new ApplyVoucherItemRequest();
+                itemReq.setSkuId(preview.getSkuId());
+                itemReq.setProductId(preview.getProductId());
+                itemReq.setCategoryId(preview.getCategoryId());
+                itemReq.setPrice(preview.getPrice());
+                itemReq.setQuantity(preview.getQuantity());
+                voucherItems.add(itemReq);
+            }
+            voucherReq.setItems(voucherItems);
+
+            // Gọi service voucher dùng lại logic hiện có
+            ApplyVoucherResponse voucherRes = voucherService.applyVoucher(voucherReq);
+            discount = voucherRes.getDiscount();
+
+            // Safety nhỏ cho chắc
+            if (discount < 0) discount = 0;
+            if (discount > itemsSubtotal + shippingFee) {
+                discount = itemsSubtotal + shippingFee;
+            }
         }
+
 
         long grandTotal = itemsSubtotal + shippingFee - discount;
         if (grandTotal < 0) grandTotal = 0;
