@@ -7,6 +7,7 @@ import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
 import com.manhduc205.ezgear.shipping.service.GhnMasterDataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -46,7 +47,7 @@ public class CustomerAddressService {
         return toDto(saved);
     }
 
-
+    @Transactional
     public CustomerAddressDTO updateAddress(Long id, CustomerAddressRequest req) {
 
         CustomerAddress address = customerAddressRepository.findById(id)

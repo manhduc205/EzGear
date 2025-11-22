@@ -118,8 +118,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         // Tính phí ship theo GHN dùng branchId nơi gửi hàng
         Long firstSkuId = req.getCartItems().get(0).getSkuId();
-        GhnShippingFeeResponse feeRes = shippingFeeCalculatorService
-                .calculateShippingFee(branchId, address.getId(), firstSkuId, req.getServiceId());
+        GhnShippingFeeResponse feeRes = shippingFeeCalculatorService.calculateShippingFee(branchId, address.getId(), firstSkuId, req.getServiceId());
 
         long shippingFee = 0L;
         if (feeRes.getData() != null && feeRes.getData().getTotal() != null) {
@@ -129,20 +128,16 @@ public class CheckoutServiceImpl implements CheckoutService {
         // Voucher (tạm hardcode)
         // Voucher: BE tự tính lại để tránh gian lận
         // =======================
-//  VOUCHER (backend tự tính, không tin FE)
+//  VOUCHER (backend tự tính, tránh gian lận)
 // =======================
+
         long discount = 0L;
         String voucherCode = null;
 
         if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
             voucherCode = req.getVoucherCode().trim();
 
-            // Build request cho VoucherService dựa trên dữ liệu checkout hiện tại
-            ApplyVoucherRequest voucherReq = new ApplyVoucherRequest();
-            voucherReq.setCode(voucherCode);
-            voucherReq.setSubtotal(itemsSubtotal);
-            voucherReq.setShippingFee(shippingFee);
-
+            // Build item list
             List<ApplyVoucherItemRequest> voucherItems = new ArrayList<>();
             for (CheckoutItemPreviewResponse preview : itemPreviews) {
                 ApplyVoucherItemRequest itemReq = new ApplyVoucherItemRequest();
@@ -153,18 +148,16 @@ public class CheckoutServiceImpl implements CheckoutService {
                 itemReq.setQuantity(preview.getQuantity());
                 voucherItems.add(itemReq);
             }
-            voucherReq.setItems(voucherItems);
 
-            // Gọi service voucher dùng lại logic hiện có
-            ApplyVoucherResponse voucherRes = voucherService.applyVoucher(voucherReq);
-            discount = voucherRes.getDiscount();
+            // BE tự tính lại voucher
+            discount = voucherService.calculateDiscountForCheckout(voucherCode, voucherItems, itemsSubtotal, shippingFee
+            );
 
-            // Safety nhỏ cho chắc
             if (discount < 0) discount = 0;
-            if (discount > itemsSubtotal + shippingFee) {
+            if (discount > itemsSubtotal + shippingFee)
                 discount = itemsSubtotal + shippingFee;
-            }
         }
+
 
 
         long grandTotal = itemsSubtotal + shippingFee - discount;
