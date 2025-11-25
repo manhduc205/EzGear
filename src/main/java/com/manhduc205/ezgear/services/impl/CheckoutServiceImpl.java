@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.dtos.request.AddCartItemRequest;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.CheckoutRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
@@ -77,8 +78,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             int available = productStockService.getAvailable(item.getSkuId(), warehouseId);
             if (available < item.getQuantity()) {
                 throw new RequestException(
-                        "Sản phẩm SKU " + item.getSkuId()
-                                + " không đủ tồn kho (còn " + available + ")."
+                        "Sản phẩm SKU " + item.getSkuId() + " không đủ tồn kho (còn " + available + ")."
                 );
             }
         }
@@ -86,7 +86,7 @@ public class CheckoutServiceImpl implements CheckoutService {
         // Tính subtotal + build orderItems + item preview
         long itemsSubtotal = 0L;
         List<CheckoutItemPreviewResponse> itemPreviews = new ArrayList<>();
-
+        List<AddCartItemRequest> cartItemsForShipping = new ArrayList<>();
         for (CartItemRequest ci : req.getCartItems()) {
             ProductSKU sku = productSkuRepository.findById(ci.getSkuId())
                     .orElseThrow(() -> new RequestException("SKU " + ci.getSkuId() + " không tồn tại."));
@@ -96,6 +96,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             }
 
             Long unitPrice = sku.getPrice() != null ? sku.getPrice() : 0L;
+            int quantity = Math.max(1, ci.getQuantity());
             long lineTotal = unitPrice * ci.getQuantity();
             itemsSubtotal += lineTotal;
 
@@ -114,22 +115,23 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .selected(true)
                     .build();
             itemPreviews.add(previewItem);
+
+            // Chuyển dữ liệu sang AddCartItemRequest cho ShippingFeeCalculator
+            AddCartItemRequest cartItemForShipping = new AddCartItemRequest();
+            cartItemForShipping.setSkuId(sku.getId());
+            cartItemForShipping.setQuantity(quantity);
+            cartItemsForShipping.add(cartItemForShipping);
         }
 
-        // Tính phí ship theo GHN dùng branchId nơi gửi hàng
-        Long firstSkuId = req.getCartItems().get(0).getSkuId();
-        GhnShippingFeeResponse feeRes = shippingFeeCalculatorService.calculateShippingFee(branchId, address.getId(), firstSkuId, req.getServiceId());
-
+        // Tính phí ship cho toàn bộ giỏ
+        GhnShippingFeeResponse feeRes = shippingFeeCalculatorService.calculateShippingFee(
+                branchId, address.getId(), cartItemsForShipping, req.getServiceId()
+        );
         long shippingFee = 0L;
         if (feeRes.getData() != null && feeRes.getData().getTotal() != null) {
             shippingFee = feeRes.getData().getTotal();
         }
-
-        // Voucher (tạm hardcode)
-        // Voucher: BE tự tính lại để tránh gian lận
-        // =======================
-//  VOUCHER (backend tự tính, tránh gian lận)
-// =======================
+        // Voucher BE tự tính lại để tránh gian lận
 
         long discount = 0L;
         String voucherCode = null;
@@ -157,8 +159,6 @@ public class CheckoutServiceImpl implements CheckoutService {
             if (discount > itemsSubtotal + shippingFee)
                 discount = itemsSubtotal + shippingFee;
         }
-
-
 
         long grandTotal = itemsSubtotal + shippingFee - discount;
         if (grandTotal < 0) grandTotal = 0;
