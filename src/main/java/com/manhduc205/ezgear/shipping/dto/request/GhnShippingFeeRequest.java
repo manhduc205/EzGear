@@ -31,4 +31,7 @@ public class GhnShippingFeeRequest {
 
     @JsonProperty("width")
     private Integer width; // cm
+
+    @JsonProperty("shop_id")
+    private Integer shopId;
 }

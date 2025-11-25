@@ -1,5 +1,7 @@
 package com.manhduc205.ezgear.shipping.controller;
 
+import com.manhduc205.ezgear.dtos.request.AddCartItemRequest;
+import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.shipping.dto.request.ShippingAvailableServiceRequest;
 import com.manhduc205.ezgear.shipping.dto.request.ShippingFeeRequest;
 import com.manhduc205.ezgear.shipping.dto.response.GhnShippingFeeResponse;
@@ -8,8 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/shipping")
@@ -19,66 +20,75 @@ public class GhnShippingFeeController {
     private final ShippingFeeCalculatorService shippingFeeService;
 
     @PostMapping("/fee")
-    public ResponseEntity<?> calculateFee(@RequestBody ShippingFeeRequest request) {
+    public ResponseEntity<ApiResponse<GhnShippingFeeResponse>> calculateFee(@RequestBody ShippingFeeRequest request) {
         try {
             Long branchId = request.getBranchId();
             Long addressId = request.getAddressId();
-            Long skuId = request.getSkuId();
+            List<AddCartItemRequest> cartItems = request.getCartItems();
             Integer serviceId = request.getServiceId();
 
-            if (branchId == null || addressId == null || skuId == null || serviceId == null) {
-
-                Map<String, Object> body = new HashMap<>();
-                body.put("code", 400);
-                body.put("message", "Missing fields: branchId, addressId, skuId, serviceId");
-                body.put("data", null);
-
-                return ResponseEntity.badRequest().body(body);
+            if (branchId == null || addressId == null || cartItems == null || cartItems.isEmpty() || serviceId == null) {
+                return ResponseEntity.badRequest().body(
+                        ApiResponse.<GhnShippingFeeResponse>builder()
+                                .success(false)
+                                .message("Missing fields: branchId, addressId, cartItems or serviceId")
+                                .build()
+                );
             }
 
             GhnShippingFeeResponse response =
-                    shippingFeeService.calculateShippingFee(branchId, addressId, skuId, serviceId);
+                    shippingFeeService.calculateShippingFee(branchId, addressId, cartItems, serviceId);
 
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(
+                    ApiResponse.<GhnShippingFeeResponse>builder()
+                            .success(true)
+                            .message("Shipping fee calculated successfully")
+                            .payload(response)
+                            .build()
+            );
 
         } catch (Exception e) {
-
-            Map<String, Object> body = new HashMap<>();
-            body.put("code", 500);
-            body.put("message", e.getMessage());
-            body.put("data", null);
-
-            return ResponseEntity.internalServerError().body(body);
+            return ResponseEntity.internalServerError().body(
+                    ApiResponse.<GhnShippingFeeResponse>builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+            );
         }
     }
 
     @PostMapping("/available-services")
-    public ResponseEntity<?> getServices(@RequestBody ShippingAvailableServiceRequest req) {
+    public ResponseEntity<ApiResponse<?>> getServices(@RequestBody ShippingAvailableServiceRequest req) {
         try {
             Long branchId = req.getBranchId();
             Long addressId = req.getAddressId();
 
             if (branchId == null || addressId == null) {
-
-                Map<String, Object> body = new HashMap<>();
-                body.put("code", 400);
-                body.put("message", "Missing fields: branchId, addressId");
-                body.put("data", null);
-
-                return ResponseEntity.badRequest().body(body);
+                return ResponseEntity.badRequest().body(
+                        ApiResponse.builder()
+                                .success(false)
+                                .message("Missing fields: branchId, addressId")
+                                .build()
+                );
             }
 
             var res = shippingFeeService.getAvailableServices(branchId, addressId);
-            return ResponseEntity.ok(res);
+
+            return ResponseEntity.ok(
+                    ApiResponse.builder()
+                            .success(true)
+                            .message("Available services fetched successfully")
+                            .payload(res)
+                            .build()
+            );
 
         } catch (Exception e) {
-
-            Map<String, Object> body = new HashMap<>();
-            body.put("code", 500);
-            body.put("message", e.getMessage());
-            body.put("data", null);
-
-            return ResponseEntity.internalServerError().body(body);
+            return ResponseEntity.internalServerError().body(
+                    ApiResponse.builder()
+                            .success(false)
+                            .message(e.getMessage())
+                            .build()
+            );
         }
     }
 }
