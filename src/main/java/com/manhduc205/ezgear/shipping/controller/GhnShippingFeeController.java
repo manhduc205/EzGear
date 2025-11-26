@@ -1,6 +1,6 @@
 package com.manhduc205.ezgear.shipping.controller;
 
-import com.manhduc205.ezgear.dtos.request.AddCartItemRequest;
+import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.shipping.dto.request.ShippingAvailableServiceRequest;
 import com.manhduc205.ezgear.shipping.dto.request.ShippingFeeRequest;
@@ -24,7 +24,7 @@ public class GhnShippingFeeController {
         try {
             Long branchId = request.getBranchId();
             Long addressId = request.getAddressId();
-            List<AddCartItemRequest> cartItems = request.getCartItems();
+            List<CartItemRequest> cartItems = request.getCartItems();
             Integer serviceId = request.getServiceId();
 
             if (branchId == null || addressId == null || cartItems == null || cartItems.isEmpty() || serviceId == null) {

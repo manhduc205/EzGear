@@ -2,8 +2,6 @@ package com.manhduc205.ezgear.models.order;
 
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -29,7 +27,7 @@ public class Order {
     @Column(name = "branch_id")
     private Long branchId;
 
-    private String status; // PENDING_CONFIRM, PROCESSING, COMPLETED...
+    private String status; // CREATED, WAITING_PAYMENT, PENDING_SHIPMENT, SHIPPING, COMPLETED, CANCELLED
 
     @Column(name = "subtotal")
     private Long subtotal;
@@ -50,7 +48,7 @@ public class Order {
     private String note;
 
     @Column(name = "payment_status")
-    private String paymentStatus; // UNPAID, PAID, REFUNDED...
+    private String paymentStatus; // UNPAID, PENDING, PAID, FAILED
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -58,14 +56,14 @@ public class Order {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items;
 
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
         updatedAt = createdAt;
-        if (status == null) status = "PENDING_CONFIRM";
+        if (status == null) status = "CREATED";
         if (paymentStatus == null) paymentStatus = "UNPAID";
     }
 
