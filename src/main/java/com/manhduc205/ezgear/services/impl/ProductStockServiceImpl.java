@@ -35,9 +35,9 @@ public class ProductStockServiceImpl implements ProductStockService {
         ProductStock productStock = productStockRepository.findByProductSkuIdAndWarehouseId(productStockDTO.getSkuId(),productStockDTO.getWarehouseId())
                 .orElseGet(() ->{
                     ProductSKU sku = productSkuRepository.findById(productStockDTO.getSkuId())
-                            .orElseThrow(() -> new RuntimeException("SKU not found"));
+                            .orElseThrow(() -> new RequestException("SKU not found"));
                     Warehouse warehouse = warehouseRepository.findById(productStockDTO.getWarehouseId())
-                            .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+                            .orElseThrow(() -> new RequestException("Warehouse not found"));
                     return ProductStock.builder()
                             .productSku(sku)
                             .warehouse(warehouse)
@@ -60,33 +60,12 @@ public class ProductStockServiceImpl implements ProductStockService {
 
     @Override
     public int getAvailable(Long skuId, Long warehouseId) {
-        Optional<ProductStock> productStock = productStockRepository.findByProductSkuIdAndWarehouseId(skuId,warehouseId);
-         return productStock.map(stock -> stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock())
+        return productStockRepository.findByProductSkuIdAndWarehouseId(skuId, warehouseId)
+                .map(stock -> {
+                    int available = stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock();
+                    return Math.max(0, available); // Không bao giờ trả về số âm
+                })
                 .orElse(0);
-    }
-
-    @Override
-    @Transactional
-    public void reduceStock(List<CartItemRequest> cartItems, Long warehouseId, Long orderId) {
-
-        if (warehouseId == null) {
-            throw new RequestException("Không tìm thấy kho để trừ tồn.");
-        }
-
-        for (CartItemRequest item : cartItems) {
-
-            if (item.getQuantity() == null || item.getQuantity() <= 0) {
-                throw new RequestException("Số lượng không hợp lệ khi trừ tồn.");
-            }
-
-            ProductStockDTO dto = ProductStockDTO.builder()
-                    .skuId(item.getSkuId())
-                    .warehouseId(warehouseId)
-                    .build();
-
-            // ghi âm (giảm) tồn
-            adjustStock(dto, -item.getQuantity());
-        }
     }
 
 
@@ -134,6 +113,7 @@ public class ProductStockServiceImpl implements ProductStockService {
 
     @Override
     @Transactional
+    //Chốt đơn / Xuất kho thật
     public void commitReservation(String orderCode) {
         var order = orderRepository.findByCode(orderCode)
                 .orElseThrow(() -> new RequestException("Order not found when committing reservation"));
@@ -152,6 +132,7 @@ public class ProductStockServiceImpl implements ProductStockService {
 
     @Override
     @Transactional
+    //Nhả hàng / Hủy giữ chỗ
     public void releaseReservation(String orderCode) {
         var order = orderRepository.findByCode(orderCode)
                 .orElseThrow(() -> new RequestException("Order not found when releasing reservation"));
@@ -167,6 +148,7 @@ public class ProductStockServiceImpl implements ProductStockService {
 
     @Override
     @Transactional
+    //Trừ kho trực tiếp - Không giữ chỗ
     public void reduceStockDirect(Long skuId, Long branchId, int qty) {
         if (branchId == null) {
             throw new RequestException("Kho không hợp lệ");
@@ -178,5 +160,21 @@ public class ProductStockServiceImpl implements ProductStockService {
         if (updated == 0) {
             throw new RequestException("Không đủ tồn kho để trừ trực tiếp");
         }
+    }
+
+    @Override
+    public int getAvailableInProvince(Long skuId, Integer provinceId) {
+        // Nếu không có ProvinceId (Lỗi Frontend hoặc chưa chọn), coi như không có hàng tại đó
+        if (provinceId == null) {
+            return 0;
+        }
+        Integer totalAvailable = productStockRepository.sumStockByProvince(skuId, provinceId);
+        return totalAvailable == null ? 0 : Math.max(0, totalAvailable);
+    }
+
+    @Override
+    public int getTotalSystemStock(Long skuId) {
+        Integer total = productStockRepository.sumTotalAvailable(skuId);
+        return total == null ? 0 : Math.max(0, total);
     }
 }

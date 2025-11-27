@@ -9,11 +9,13 @@ import java.util.List;
 public interface ProductStockService {
     ProductStockDTO adjustStock(ProductStockDTO productStockDTO, int delta);
     int getAvailable(Long skuId, Long warehouseId);
-    void reduceStock(List<CartItemRequest> cartItems, Long warehouseId, Long orderId);
     List<StockResponse> getAllStock();
     void reserveStock(String orderCode, Long skuId, Long branchId, int qty);
     boolean hasReservation(String orderCode);
     void commitReservation(String orderCode);
     void releaseReservation(String orderCode);
     void reduceStockDirect(Long skuId, Long branchId, int qty);
+
+    int getAvailableInProvince(Long skuId, Integer provinceId);
+    int getTotalSystemStock(Long skuId);
 }

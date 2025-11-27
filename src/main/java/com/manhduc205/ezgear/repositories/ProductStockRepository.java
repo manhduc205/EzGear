@@ -46,4 +46,19 @@ public interface ProductStockRepository extends JpaRepository<ProductStock, Long
     int reduceDirect(@Param("skuId") Long skuId,
                      @Param("warehouseId") Long warehouseId,
                      @Param("qty") int qty);
+    // tính tổng tồn kho trên toàn quốc
+    @Query("SELECT COALESCE(SUM(ps.qtyOnHand - ps.qtyReserved - ps.safetyStock), 0) " +
+            "FROM ProductStock ps WHERE ps.productSku.id = :skuId")
+    Integer sumTotalAvailable(@Param("skuId") Long skuId);
+    // tính tổng tồn kho trong một tỉnh/thành
+    @Query("SELECT COALESCE(SUM(ps.qtyOnHand - ps.qtyReserved - ps.safetyStock), 0) " +
+            "FROM ProductStock ps " +
+            "JOIN ps.warehouse w " +
+            "JOIN w.branch b " +
+            "WHERE ps.productSku.id = :skuId " +
+            "AND b.provinceId = :provinceId " +
+            "AND w.isActive = true " +
+            "AND b.isActive = true")
+    Integer sumStockByProvince(@Param("skuId") Long skuId, @Param("provinceId") Integer provinceId);
 }
+
