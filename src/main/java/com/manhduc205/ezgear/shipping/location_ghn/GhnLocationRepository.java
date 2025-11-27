@@ -11,5 +11,6 @@ public interface GhnLocationRepository extends JpaRepository<GhnLocation, String
     List<GhnLocation> findByType(GhnLocation.Type type);
     List<GhnLocation> findByParentId(String parentId);
     Optional<GhnLocation> findByTypeAndId( GhnLocation.Type type,String id);
+    List<GhnLocation> findAllByType(GhnLocation.Type type);
 }
 
