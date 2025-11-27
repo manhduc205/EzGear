@@ -78,6 +78,7 @@ public class SecurityConfig {
                         .requestMatchers("/voucher/apply").permitAll()
                         .requestMatchers("/ghn-locations/**").permitAll()
                         .requestMatchers("/orders/**").permitAll()
+                        .requestMatchers("/locations/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

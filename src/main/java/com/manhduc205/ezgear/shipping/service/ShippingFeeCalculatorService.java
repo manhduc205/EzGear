@@ -1,10 +1,9 @@
 package com.manhduc205.ezgear.shipping.service;
 
-import com.manhduc205.ezgear.dtos.request.AddCartItemRequest;
+import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.models.Branch;
 import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.models.ProductSKU;
-import com.manhduc205.ezgear.models.order.OrderItem;
 import com.manhduc205.ezgear.repositories.BranchRepository;
 import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
 import com.manhduc205.ezgear.repositories.ProductSkuRepository;
@@ -83,7 +82,7 @@ public class ShippingFeeCalculatorService {
      *  - serviceId: dịch vụ GHN mà FE chọn
      */
     public GhnShippingFeeResponse calculateShippingFee(Long branchId, Long addressId,
-                                                       List<AddCartItemRequest> cartItems, Integer serviceId) {
+                                                       List<CartItemRequest> cartItems, Integer serviceId) {
         if (serviceId == null) {
             throw new RuntimeException("serviceId is required.");
         }
@@ -101,15 +100,13 @@ public class ShippingFeeCalculatorService {
             throw new RuntimeException("Thiếu thông tin GHN (district / ward) cho branch hoặc address.");
         }
 
-        // -------------------------------------------------------------
-        // TÍNH TỔNG WEIGHT + DIMENSION DỰA TRÊN CART
-        // -------------------------------------------------------------
+        // tính lại weight & kích thước dựa trên các SKU trong giỏ
         int totalWeight = 0;
         int maxLength = 0;
         int maxWidth = 0;
         int maxHeight = 0;
         int totalPrice = 0;
-        for (AddCartItemRequest item : cartItems) {
+        for (CartItemRequest item : cartItems) {
             ProductSKU sku = skuRepo.findById(item.getSkuId())
                     .orElseThrow(() -> new RuntimeException("Product SKU not found: " + item.getSkuId()));
 

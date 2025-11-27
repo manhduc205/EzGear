@@ -1,6 +1,6 @@
 package com.manhduc205.ezgear.shipping.dto.request;
 
-import com.manhduc205.ezgear.dtos.request.AddCartItemRequest;
+import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import lombok.Data;
 
 import java.util.List;
@@ -9,6 +9,6 @@ import java.util.List;
 public class ShippingFeeRequest {
     private Long branchId;
     private Long addressId;
-    private List<AddCartItemRequest> cartItems;
+    private List<CartItemRequest> cartItems;
     private Integer serviceId;
 }
