@@ -8,4 +8,5 @@ import java.util.List;
 public class CartCheckoutRequest {
     private List<CartItemRequest> cartItems;
     private String voucherCode;
+    private Integer provinceId;
 }

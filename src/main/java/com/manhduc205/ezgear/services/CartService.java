@@ -1,21 +1,18 @@
 package com.manhduc205.ezgear.services;
 
-import com.manhduc205.ezgear.dtos.request.AddToCartRequest;
 import com.manhduc205.ezgear.dtos.request.CartCheckoutRequest;
+import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.responses.CartResponse;
 import com.manhduc205.ezgear.dtos.responses.CartCheckoutPreviewResponse;
-import org.springframework.stereotype.Service;
 
-// dùng concurentHashMap an toàn hơn với đa luồng, tránh race condition
-@Service
 public interface CartService {
-    CartResponse getCart(Long userId);
+    CartResponse getCart(Long userId, Integer provinceId);
 
-    CartResponse addItem(Long userId, AddToCartRequest req);
+    CartResponse addItem(Long userId, CartItemRequest req, Integer provinceId);
 
-    CartResponse updateQuantity(Long userId, Long skuId, int quantity);
+    CartResponse updateQuantity(Long userId, Long skuId, int qty, Integer provinceId);
 
-    CartResponse removeItem(Long userId, Long skuId);
+    CartResponse removeItem(Long userId, Long skuId, Integer provinceId);
 
     void clearCart(Long userId);
 

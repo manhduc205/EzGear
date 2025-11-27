@@ -1,7 +1,7 @@
 package com.manhduc205.ezgear.controllers;
 
-import com.manhduc205.ezgear.dtos.request.AddToCartRequest;
 import com.manhduc205.ezgear.dtos.request.CartCheckoutRequest;
+import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.responses.CartResponse;
 import com.manhduc205.ezgear.dtos.responses.CartCheckoutPreviewResponse;
 import com.manhduc205.ezgear.security.CustomUserDetails;
@@ -28,37 +28,37 @@ public class CartController {
     }
 
     @GetMapping("")
-    public ResponseEntity<CartResponse> getCart(@AuthenticationPrincipal CustomUserDetails user) {
+    public ResponseEntity<CartResponse> getCart(@AuthenticationPrincipal CustomUserDetails user, @RequestParam(required = false) Integer provinceId) {
         Long userId = user.getId();
-        return ResponseEntity.ok(cartService.getCart(userId));
+        return ResponseEntity.ok(cartService.getCart(userId,provinceId));
     }
 
     @PostMapping("/add")
     public ResponseEntity<CartResponse> addItem(
             @AuthenticationPrincipal CustomUserDetails user,
-            @RequestBody AddToCartRequest request
+            @RequestBody CartItemRequest request,
+            @RequestParam(required = false) Integer provinceId
     ) {
-        Long userId = user.getId();
-        return ResponseEntity.ok(cartService.addItem(userId, request));
+        return ResponseEntity.ok(cartService.addItem(user.getId(), request, provinceId));
     }
 
     @PutMapping("/update/{skuId}")
     public ResponseEntity<CartResponse> updateQuantity(
             @AuthenticationPrincipal CustomUserDetails user,
             @PathVariable Long skuId,
-            @RequestParam int quantity
+            @RequestParam int quantity,
+            @RequestParam(required = false) Integer provinceId
     ) {
-        Long userId = user.getId();
-        return ResponseEntity.ok(cartService.updateQuantity(userId, skuId, quantity));
+        return ResponseEntity.ok(cartService.updateQuantity(user.getId(), skuId, quantity, provinceId));
     }
 
     @DeleteMapping("/remove/{skuId}")
     public ResponseEntity<CartResponse> removeItem(
             @AuthenticationPrincipal CustomUserDetails user,
-            @PathVariable Long skuId
+            @PathVariable Long skuId,
+            @RequestParam(required = false) Integer provinceId
     ) {
-        Long userId = user.getId();
-        return ResponseEntity.ok(cartService.removeItem(userId, skuId));
+        return ResponseEntity.ok(cartService.removeItem(user.getId(), skuId, provinceId));
     }
 
     @DeleteMapping("/clear")
