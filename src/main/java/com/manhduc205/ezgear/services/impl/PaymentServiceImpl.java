@@ -9,6 +9,7 @@ import com.manhduc205.ezgear.repositories.OrderRepository;
 import com.manhduc205.ezgear.repositories.PaymentRepository;
 import com.manhduc205.ezgear.services.PaymentService;
 import com.manhduc205.ezgear.services.ProductStockService;
+import com.manhduc205.ezgear.services.WarehouseService;
 import com.manhduc205.ezgear.utils.VnPayUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final ProductStockService productStockService;
+    private final WarehouseService warehouseService;
 
     @Value("${vnpay.tmnCode}")
     private String tmnCode;
@@ -43,6 +45,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Value("${vnpay.returnUrl}")
     private String returnUrl;
+
 
     @Override
     @Transactional
@@ -147,7 +150,6 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    @Transactional
     public String handleVnPayCallback(HttpServletRequest request) {
         // lưu tham số từ request về Map
         Map<String, String> fields = new HashMap<>();
@@ -266,22 +268,22 @@ public class PaymentServiceImpl implements PaymentService {
 
             // CHỐT KHO (COMMIT RESERVATION)
             try {
-                // Kiểm tra xem có reservation không trước khi commit
                 if (productStockService.hasReservation(order.getCode())) {
                     productStockService.commitReservation(order.getCode());
                 } else {
-                    log.warn("Warning: No reservation found for order {} when committing stock. Maybe expired?", order.getCode());
-                    // Nếu không có reservation (do cron job xóa nhầm hoặc lỗi), ta cần trừ kho trực tiếp
-                    // Ở đây ta cố gắng trừ trực tiếp để cứu đơn hàng
+                    // Fallback: Trừ trực tiếp nếu mất reservation
+                    log.warn("Lost reservation for {}. Trying direct reduce.", order.getCode());
+
+                    // Tìm đúng Warehouse ID
+                    Long warehouseId = warehouseService.getWarehouseIdByBranch(order.getBranchId());
+
                     for(var item : order.getItems()) {
-                        productStockService.reduceStockDirect(item.getSkuId(), order.getBranchId(), item.getQuantity());
+                        productStockService.reduceStockDirect(item.getSkuId(), warehouseId, item.getQuantity());
                     }
                 }
             } catch (Exception e) {
-                log.error("Stock Commit Failed for Order {}", order.getCode(), e);
-                // Nếu commit lỗi DB, ta vẫn trả về OK cho VNPay để họ không gọi lại,
-                // nhưng cần log alert để Admin xử lý thủ công.
-                return "OK";
+                // Log lỗi nhưng vẫn trả về OK để VNPay không gọi lại
+                log.error("STOCK ERROR: Failed to commit stock for order {}", order.getCode(), e);
             }
 
             return "OK";
@@ -324,4 +326,5 @@ public class PaymentServiceImpl implements PaymentService {
         paymentRepository.save(payment);
         log.info("Created COD Payment for Order: {}", order.getCode());
     }
+
 }

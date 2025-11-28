@@ -16,4 +16,5 @@ public interface WarehouseService {
     Warehouse resolveWarehouseForAddress(CustomerAddress address);
     Long getWarehouseIdByAddress(CustomerAddress address);
     Warehouse findOptimalWarehouse(CustomerAddress address, List<CartItemRequest> items);
+    Long getWarehouseIdByBranch(Long branchId);
 }

@@ -29,6 +29,11 @@ public class ProductStockServiceImpl implements ProductStockService {
     private final ProductSkuRepository productSkuRepository;
     private final OrderRepository orderRepository;
 
+    private Long getWarehouseIdByBranch(Long branchId) {
+        return warehouseRepository.findFirstByBranchIdAndIsActiveTrue(branchId)
+                .map(Warehouse::getId)
+                .orElseThrow(() -> new RequestException("Không tìm thấy kho hàng cho chi nhánh " + branchId));
+    }
     //Input: ProductStockDTO + delta (số lượng cộng/trừ).
     @Override
     public ProductStockDTO adjustStock(ProductStockDTO productStockDTO, int delta) {
@@ -88,19 +93,14 @@ public class ProductStockServiceImpl implements ProductStockService {
 
     @Override
     @Transactional
-    public void reserveStock(String orderCode, Long skuId, Long branchId, int qty) {
-        if (branchId == null) {
-            throw new RequestException("Kho không hợp lệ");
-        }
-        if (qty <= 0) {
-            throw new RequestException("Số lượng giữ chỗ không hợp lệ");
-        }
+    public void reserveStock(String orderCode, Long skuId, Long warehouseId, int qty) {
+        if (warehouseId == null) throw new RequestException("Kho không hợp lệ");
+        if (qty <= 0) throw new RequestException("Số lượng không hợp lệ");
 
-        int updated = productStockRepository.reserveStock(skuId, branchId, qty);
+        int updated = productStockRepository.reserveStock(skuId, warehouseId, qty);
         if (updated == 0) {
-            throw new RequestException("Không đủ tồn kho để giữ chỗ");
+            throw new RequestException("Không đủ tồn kho để giữ chỗ (SKU: " + skuId + ")");
         }
-        // Reservation is implicitly tracked per order by OrderItem quantities
     }
 
     @Override
@@ -121,9 +121,9 @@ public class ProductStockServiceImpl implements ProductStockService {
         if (order.getItems() == null || order.getItems().isEmpty()) {
             return;
         }
-
+        Long warehouseId = getWarehouseIdByBranch(order.getBranchId());
         for (var it : order.getItems()) {
-            int updated = productStockRepository.commitReserved(it.getSkuId(), order.getBranchId(), it.getQuantity());
+            int updated = productStockRepository.commitReserved(it.getSkuId(), warehouseId, it.getQuantity());
             if (updated == 0) {
                 throw new RequestException("Không thể commit giữ chỗ cho SKU " + it.getSkuId());
             }
@@ -140,25 +140,21 @@ public class ProductStockServiceImpl implements ProductStockService {
         if (order.getItems() == null || order.getItems().isEmpty()) {
             return;
         }
-
+        Long warehouseId = getWarehouseIdByBranch(order.getBranchId());
         for (var it : order.getItems()) {
-            productStockRepository.releaseReserved(it.getSkuId(), order.getBranchId(), it.getQuantity());
+            productStockRepository.releaseReserved(it.getSkuId(), warehouseId, it.getQuantity());
         }
     }
 
     @Override
     @Transactional
-    //Trừ kho trực tiếp - Không giữ chỗ
-    public void reduceStockDirect(Long skuId, Long branchId, int qty) {
-        if (branchId == null) {
-            throw new RequestException("Kho không hợp lệ");
-        }
-        if (qty <= 0) {
-            throw new RequestException("Số lượng trừ kho không hợp lệ");
-        }
-        int updated = productStockRepository.reduceDirect(skuId, branchId, qty);
+    public void reduceStockDirect(Long skuId, Long warehouseId, int qty) {
+        // SỬA: Nhận trực tiếp WarehouseId
+        if (warehouseId == null) throw new RequestException("Kho không hợp lệ");
+
+        int updated = productStockRepository.reduceDirect(skuId, warehouseId, qty);
         if (updated == 0) {
-            throw new RequestException("Không đủ tồn kho để trừ trực tiếp");
+            throw new RequestException("Sản phẩm không đủ hàng để xuất kho.");
         }
     }
 

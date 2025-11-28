@@ -130,6 +130,12 @@ public class WarehouseServiceImpl implements WarehouseService {
         Warehouse warehouse = resolveWarehouseForAddress(address);
         return warehouse != null ? warehouse.getId() : null;
     }
+    @Override
+    public Long getWarehouseIdByBranch(Long branchId) {
+        return warehouseRepository.findFirstByBranchIdAndIsActiveTrue(branchId)
+                .map(Warehouse::getId)
+                .orElseThrow(() -> new RequestException("Kho không tồn tại"));
+    }
     // hàm tìm kho gần nhất có hàng (nếu thiếu thì chuyển kho cùng tỉnh sang)
 
     @Override
@@ -172,7 +178,7 @@ public class WarehouseServiceImpl implements WarehouseService {
             }
         }
 
-        // ƯU TIÊN 2 (Fallback): Chọn kho GẦN NHẤT (đầu danh sách)
+        // ƯU TIÊN 2 : Chọn kho GẦN NHẤT (đầu danh sách)
         return warehouses.get(0);
     }
 
