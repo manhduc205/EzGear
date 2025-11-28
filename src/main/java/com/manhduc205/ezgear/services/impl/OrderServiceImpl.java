@@ -3,13 +3,17 @@ package com.manhduc205.ezgear.services.impl;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 import com.manhduc205.ezgear.dtos.request.order.CreateOrderRequest;
-import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest; // Import class này
+import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
 import com.manhduc205.ezgear.dtos.responses.VNPayResponse;
 import com.manhduc205.ezgear.dtos.responses.order.OrderPlacementResponse;
 import com.manhduc205.ezgear.exceptions.RequestException;
+import com.manhduc205.ezgear.models.CustomerAddress;
+import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductSKU;
+import com.manhduc205.ezgear.models.Warehouse;
 import com.manhduc205.ezgear.models.order.Order;
 import com.manhduc205.ezgear.models.order.OrderItem;
+import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
 import com.manhduc205.ezgear.repositories.OrderItemRepository;
 import com.manhduc205.ezgear.repositories.OrderRepository;
 import com.manhduc205.ezgear.repositories.ProductSkuRepository;
@@ -21,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,43 +40,59 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepo;
     private final OrderItemRepository orderItemRepo;
     private final ProductSkuRepository skuRepo;
+    private final CustomerAddressRepository addressRepo; // Đổi tên cho gọn
+
+    // Service
     private final ProductStockService stockService;
+    private final WarehouseService warehouseService; // Cần cái này để tìm Hub
     private final ShippingFeeCalculatorService shippingFeeService;
     private final VoucherService voucherService;
     private final PaymentService paymentService;
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public OrderPlacementResponse createOrder(CreateOrderRequest req, Long userId, String paymentMethod, HttpServletRequest httpRequest) {
-        // 1. Validate Input
         if (req.getCartItems() == null || req.getCartItems().isEmpty()) {
             throw new RequestException("Giỏ hàng rỗng, không thể tạo đơn hàng.");
         }
+        if (req.getAddressId() == null) {
+            throw new RequestException("Vui lòng chọn địa chỉ nhận hàng.");
+        }
 
-        // 2. Tính toán Subtotal & Validate Tồn kho (ZERO TRUST)
+        // Lấy thông tin Địa chỉ nhận hàng (Để biết Tỉnh nào -> Tìm kho)
+        CustomerAddress address = addressRepo.findByIdAndUserId(req.getAddressId(), userId)
+                .orElseThrow(() -> new RequestException("Địa chỉ giao hàng không hợp lệ."));
+
+        //  CHECK TỒN KHO THEO KHU VỰC (Location Context)
+        // Chỉ cần Tổng tồn kho trong Tỉnh > 0 là cho phép đặt.
+        for (CartItemRequest ci : req.getCartItems()) {
+            int availableInProvince = stockService.getAvailableInProvince(ci.getSkuId(), address.getProvinceId());
+            if (availableInProvince < ci.getQuantity()) {
+                ProductSKU sku = skuRepo.findById(ci.getSkuId()).orElseThrow();
+                throw new RequestException("Sản phẩm " + sku.getName() + " không đủ hàng tại khu vực của bạn (Còn: " + availableInProvince + ").");
+            }
+        }
+
+        // TÌM KHO GIAO HÀNG (HUB WAREHOUSE)
+        // tự quyết định kho nào tối ưu nhất (Gần nhất + Đủ hàng nhất)
+        Warehouse hubWarehouse = warehouseService.findOptimalWarehouse(address, req.getCartItems());
+        Long hubWarehouseId = hubWarehouse.getId();
+        Long hubBranchId = hubWarehouse.getBranch().getId();
+
+        // Build Order Items & Voucher Data
         long subtotal = 0L;
         List<OrderItem> items = new ArrayList<>();
-        // Tạo thêm list này để dùng cho Voucher Service
         List<ApplyVoucherItemRequest> voucherItems = new ArrayList<>();
 
         for (CartItemRequest ci : req.getCartItems()) {
             ProductSKU sku = skuRepo.findById(ci.getSkuId())
                     .orElseThrow(() -> new RequestException("SKU ID " + ci.getSkuId() + " không tồn tại."));
 
-            if (ci.getQuantity() == null || ci.getQuantity() <= 0) {
-                throw new RequestException("Số lượng không hợp lệ cho sản phẩm: " + sku.getName());
-            }
-
-            int available = stockService.getAvailable(ci.getSkuId(), req.getBranchId());
-            if (available < ci.getQuantity()) {
-                throw new RequestException("Sản phẩm " + sku.getName() + " không đủ hàng (Còn: " + available + ").");
-            }
-
             long unitPrice = sku.getPrice();
             long lineTotal = unitPrice * ci.getQuantity();
             subtotal += lineTotal;
 
-            // Build OrderItem (Dùng để lưu DB)
+            // Build OrderItem Entity
             OrderItem item = OrderItem.builder()
                     .skuId(ci.getSkuId())
                     .productId(sku.getProduct().getId())
@@ -85,29 +106,26 @@ public class OrderServiceImpl implements OrderService {
                     .build();
             items.add(item);
 
-            // Build ApplyVoucherItemRequest (Dùng để tính Voucher)
-            // Cần map dữ liệu từ SKU sang DTO Voucher
-            ApplyVoucherItemRequest voucherItem = new ApplyVoucherItemRequest();
-            voucherItem.setSkuId(sku.getId());
-            voucherItem.setProductId(sku.getProduct().getId());
-            // Lấy category ID từ product
+            // Build Voucher DTO
+            ApplyVoucherItemRequest vItem = new ApplyVoucherItemRequest();
+            vItem.setSkuId(sku.getId());
+            vItem.setProductId(sku.getProduct().getId());
             if (sku.getProduct().getCategory() != null) {
-                voucherItem.setCategoryId(sku.getProduct().getCategory().getId());
+                vItem.setCategoryId(sku.getProduct().getCategory().getId());
             }
-            voucherItem.setPrice(unitPrice);
-            voucherItem.setQuantity(ci.getQuantity());
-
-            voucherItems.add(voucherItem);
+            vItem.setPrice(unitPrice);
+            vItem.setQuantity(ci.getQuantity());
+            voucherItems.add(vItem);
         }
 
-        // 3. Tính phí ship
+        // Tính phí ship (Từ Hub Warehouse -> Địa chỉ khách)
         long shippingFee = 0L;
         try {
             var shippingRes = shippingFeeService.calculateShippingFee(
-                    req.getBranchId(),
+                    hubBranchId, // Quan trọng: Tính từ kho Hub
                     req.getAddressId(),
                     req.getCartItems(),
-                    1
+                    req.getShippingServiceId()
             );
             if (shippingRes != null && shippingRes.getData() != null) {
                 shippingFee = shippingRes.getData().getTotal();
@@ -117,36 +135,30 @@ public class OrderServiceImpl implements OrderService {
             throw new RequestException("Không thể tính phí vận chuyển lúc này.");
         }
 
-        // 4. Tính Voucher
+        // 7. Tính Voucher
         long discount = 0L;
         if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
-            // SỬA LỖI Ở ĐÂY: Truyền voucherItems thay vì items
             discount = voucherService.calculateDiscountForCheckout(
-                    req.getVoucherCode(),
-                    voucherItems, // Đã đổi thành list đúng kiểu dữ liệu
-                    subtotal,
-                    shippingFee
+                    req.getVoucherCode(), voucherItems, subtotal, shippingFee
             );
         }
 
-        // 5. Chốt tổng tiền
         long grandTotal = Math.max(0, subtotal + shippingFee - discount);
 
-        // 6. Sinh Mã Order
+        //Lưu Order
         String orderCode = generateOrderCode();
 
         String orderStatus = "WAITING_PAYMENT";
         String paymentStatus = "UNPAID";
-
         if ("COD".equalsIgnoreCase(paymentMethod)) {
             orderStatus = "PENDING_SHIPMENT";
-            paymentStatus = "PAID";
+            paymentStatus = "PENDING"; // COD coi như chốt đơn
         }
 
         Order order = Order.builder()
                 .code(orderCode)
                 .userId(userId)
-                .branchId(req.getBranchId())
+                .branchId(hubBranchId)
                 .subtotal(subtotal)
                 .discountTotal(discount)
                 .shippingFee(shippingFee)
@@ -165,12 +177,23 @@ public class OrderServiceImpl implements OrderService {
         }
         savedOrder.setItems(items);
 
-        // 7. Phân nhánh Thanh toán
-        if ("COD".equalsIgnoreCase(paymentMethod)) {
-            // --- COD ---
+        // Xử lý Kho & Thanh toán
+
+        // Dùng reserveStock cho CẢ HAI trường hợp vì hàm này có logic "tìm hàng từ kho khác"
+
+        try {
             for (OrderItem it : items) {
-                stockService.reduceStockDirect(it.getSkuId(), savedOrder.getBranchId(), it.getQuantity());
+                stockService.reserveStock(savedOrder.getCode(), it.getSkuId(), hubWarehouseId, it.getQuantity());
             }
+        } catch (Exception e) {
+            // Nếu giữ chỗ thất bại (do hết hàng phút chót) -> Rollback toàn bộ
+            throw new RequestException("Rất tiếc, sản phẩm vừa hết hàng khi đang xử lý.");
+        }
+
+        if ("COD".equalsIgnoreCase(paymentMethod)) {
+            // Vì đã giữ chỗ thành công ở trên (bao gồm cả việc điều chuyển nếu cần)
+            // Giờ ta Commit luôn (Trừ kho thật)
+            stockService.commitReservation(savedOrder.getCode());
 
             ProductPaymentRequest paymentReq = ProductPaymentRequest.builder()
                     .orderCode(savedOrder.getCode())
@@ -189,14 +212,7 @@ public class OrderServiceImpl implements OrderService {
 
         } else {
             // --- VNPAY ---
-            try {
-                for (OrderItem it : items) {
-                    stockService.reserveStock(savedOrder.getCode(), it.getSkuId(), savedOrder.getBranchId(), it.getQuantity());
-                }
-            } catch (Exception e) {
-                throw new RequestException("Rất tiếc, sản phẩm vừa hết hàng. Vui lòng thử lại.");
-            }
-
+            // Đã giữ chỗ (Reserved) ở trên, giờ chỉ cần tạo URL thanh toán
             ProductPaymentRequest paymentReq = ProductPaymentRequest.builder()
                     .orderCode(savedOrder.getCode())
                     .amount(savedOrder.getGrandTotal())
@@ -215,7 +231,6 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    // --- HÀM PRIVATE SINH MÃ ORDER (Nội bộ) ---
     private String generateOrderCode() {
         String datePart = LocalDateTime.now().format(DateTimeFormatter.ofPattern("ddMMyy"));
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -224,6 +239,6 @@ public class OrderServiceImpl implements OrderService {
         for (int i = 0; i < 6; i++) {
             sb.append(chars.charAt(random.nextInt(chars.length())));
         }
-        return datePart + sb;
+        return datePart + sb.toString();
     }
 }

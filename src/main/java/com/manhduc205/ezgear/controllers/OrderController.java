@@ -19,19 +19,12 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/place")
-    public ResponseEntity<OrderPlacementResponse> placeOrder(
-            @RequestBody @Valid CreateOrderRequest req,
-            @AuthenticationPrincipal CustomUserDetails user, // Cách chuẩn bạn đang dùng
-            HttpServletRequest httpServletRequest
-    ) {
-        // 1. Lấy userId từ Security Context chuẩn
+    public ResponseEntity<OrderPlacementResponse> placeOrder(@RequestBody @Valid CreateOrderRequest req, @AuthenticationPrincipal CustomUserDetails user, HttpServletRequest httpServletRequest) {
         Long userId = user.getId();
-
-        // 2. Gọi Service (Lấy paymentMethod từ Body thay vì Param)
         OrderPlacementResponse response = orderService.createOrder(
                 req,
                 userId,
-                req.getPaymentMethod(), // Lấy từ JSON Body
+                req.getPaymentMethod(),
                 httpServletRequest
         );
 
