@@ -15,7 +15,11 @@ public interface ProductStockService {
     void commitReservation(String orderCode);
     void releaseReservation(String orderCode);
     void reduceStockDirect(Long skuId, Long warehouseId, int qty);
-
     int getAvailableInProvince(Long skuId, Integer provinceId);
     int getTotalSystemStock(Long skuId);
+    // Hàm dùng cho Xuất kho chuyển đi (Trừ Reserved và OnHand)
+    void commitTransferStock(Long skuId, Long warehouseId, int qty);
+
+    // Hàm dùng cho Nhập kho chuyển đến (Cộng OnHand)
+    void addStock(Long skuId, Long warehouseId, int qty);
 }

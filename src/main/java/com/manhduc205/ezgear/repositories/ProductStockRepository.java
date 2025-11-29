@@ -60,5 +60,12 @@ public interface ProductStockRepository extends JpaRepository<ProductStock, Long
             "AND w.isActive = true " +
             "AND b.isActive = true")
     Integer sumStockByProvince(@Param("skuId") Long skuId, @Param("provinceId") Integer provinceId);
+
+    @Modifying
+    @Query("UPDATE ProductStock ps SET ps.qtyOnHand = ps.qtyOnHand + :qty " +
+            "WHERE ps.productSku.id = :skuId AND ps.warehouse.id = :warehouseId")
+    int increaseStock(@Param("skuId") Long skuId,
+                      @Param("warehouseId") Long warehouseId,
+                      @Param("qty") int qty);
 }
 
