@@ -1,5 +1,7 @@
 package com.manhduc205.ezgear.models.order;
 
+import com.manhduc205.ezgear.enums.PaymentMethod;
+import com.manhduc205.ezgear.models.CustomerAddress;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -44,8 +46,16 @@ public class Order {
     @Column(name = "shipping_address_id")
     private Long shippingAddressId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipping_address_id", insertable = false, updatable = false)
+    private CustomerAddress shippingAddress;
+
     @Column(columnDefinition = "TEXT")
     private String note;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", nullable = false)
+    private PaymentMethod paymentMethod;
 
     @Column(name = "payment_status")
     private String paymentStatus; // UNPAID, PENDING, PAID, FAILED
