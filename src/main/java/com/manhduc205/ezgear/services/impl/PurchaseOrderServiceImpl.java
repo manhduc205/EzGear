@@ -15,6 +15,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -33,8 +36,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderDTO createOrder(PurchaseOrderDTO purchaseOrderDTO) {
         Warehouse warehouse = warehouseRepository.findById(purchaseOrderDTO.getWarehouseId())
                 .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+        // Sử dụng hàm generatePOCode()
+        String code = purchaseOrderDTO.getCode() != null ? purchaseOrderDTO.getCode() : generatePOCode();
         PurchaseOrder purchaseOrder = PurchaseOrder.builder()
-                .code(purchaseOrderDTO.getCode() != null ? purchaseOrderDTO.getCode() : "PO-" + UUID.randomUUID())
+                .code(code)
                 .supplierName(purchaseOrderDTO.getSupplierName())
                 .warehouse(warehouse)
                 .status("DRAFT")
@@ -158,7 +163,6 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         return purchaseOrderRepository.findAll().stream()
                 .map(po -> {
 
-                    // Tính lại subtotal (giả sử unitPrice là Long)
                     long subtotal = po.getItems()
                             .stream()
                             .mapToLong(item -> item.getUnitPrice() * item.getQuantity())
@@ -274,5 +278,14 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         return purchaseOrderMapper.toDTO(po);
     }
 
-
+    private String generatePOCode() {
+        String datePart = LocalDateTime.now().format(DateTimeFormatter.ofPattern("ddMMyy"));
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        SecureRandom random = new SecureRandom();
+        StringBuilder sb = new StringBuilder(6);
+        for (int i = 0; i < 6; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return "PO" + datePart + sb.toString();
+    }
 }

@@ -186,7 +186,7 @@ public class OrderServiceImpl implements OrderService {
                 stockService.reserveStock(savedOrder.getCode(), it.getSkuId(), hubWarehouseId, it.getQuantity());
             }
         } catch (Exception e) {
-            // Nếu giữ chỗ thất bại (do hết hàng phút chót) -> Rollback toàn bộ
+            // Nếu giữ chỗ thất bại  -> Rollback toàn bộ
             throw new RequestException("Rất tiếc, sản phẩm vừa hết hàng khi đang xử lý.");
         }
 

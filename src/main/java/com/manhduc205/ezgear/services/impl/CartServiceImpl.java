@@ -258,24 +258,14 @@ public class CartServiceImpl implements CartService {
 
     // Logic tìm kho theo Tỉnh/Thành (Dùng cho Preview)
     private Long resolveWarehouseByLocation(Integer provinceId, List<CartItemRequest> items) {
-        // 1. Lấy danh sách kho Active
-        List<Warehouse> warehouses = warehouseRepository.findAllActiveWarehousesWithBranch();
-        if (warehouses.isEmpty()) throw new RequestException("Hệ thống chưa có kho hoạt động.");
+        // Chỉ lấy danh sách kho trong Tỉnh đang chọn
+        List<Warehouse> warehouses = warehouseRepository.findActiveWarehousesByProvince(provinceId);
 
-        // 2. Sắp xếp: Kho CÙNG TỈNH lên đầu
-        warehouses.sort((w1, w2) -> {
-            Integer p1 = w1.getBranch().getProvinceId();
-            Integer p2 = w2.getBranch().getProvinceId();
+        if (warehouses.isEmpty()) {
+            throw new RequestException("Hiện tại chưa có chi nhánh nào tại khu vực bạn chọn.");
+        }
 
-            boolean match1 = p1 != null && p1.equals(provinceId);
-            boolean match2 = p2 != null && p2.equals(provinceId);
-
-            if (match1 && !match2) return -1;
-            if (!match1 && match2) return 1;
-            return 0;
-        });
-
-        // 3. Tìm kho đủ hàng
+        // Tìm kho nào trong tỉnh đó có đủ hàng
         for (Warehouse wh : warehouses) {
             boolean isEnough = true;
             for (CartItemRequest item : items) {
@@ -285,7 +275,7 @@ public class CartServiceImpl implements CartService {
                     break;
                 }
             }
-            if (isEnough) return wh.getId();
+            if (isEnough) return wh.getId(); // Tìm thấy kho cùng tỉnh có hàng
         }
 
         throw new RequestException("Sản phẩm tạm hết hàng tại khu vực bạn chọn.");

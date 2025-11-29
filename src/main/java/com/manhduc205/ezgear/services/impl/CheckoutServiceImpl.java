@@ -1,19 +1,20 @@
 package com.manhduc205.ezgear.services.impl;
 
-import com.manhduc205.ezgear.dtos.request.AddCartItemRequest;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.CheckoutRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
-import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherRequest;
-import com.manhduc205.ezgear.dtos.responses.*;
-import com.manhduc205.ezgear.dtos.responses.voucher.ApplyVoucherResponse;
+import com.manhduc205.ezgear.dtos.responses.CheckoutResponse;
+import com.manhduc205.ezgear.dtos.responses.CheckoutItemPreviewResponse;
+import com.manhduc205.ezgear.dtos.responses.OrderPreviewResponse;
+import com.manhduc205.ezgear.dtos.responses.ShippingAddressInfo;
+import com.manhduc205.ezgear.dtos.responses.VoucherInfo;
+import com.manhduc205.ezgear.dtos.responses.WarehouseInfo;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.models.Warehouse;
 import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
-import com.manhduc205.ezgear.repositories.OrderRepository;
 import com.manhduc205.ezgear.repositories.ProductSkuRepository;
 import com.manhduc205.ezgear.services.*;
 import com.manhduc205.ezgear.shipping.dto.response.GhnShippingFeeResponse;
@@ -23,10 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -47,46 +46,37 @@ public class CheckoutServiceImpl implements CheckoutService {
         if (req.getCartItems() == null || req.getCartItems().isEmpty()) {
             throw new RequestException("Giỏ hàng trống, không thể thanh toán.");
         }
-
         if (req.getAddressId() == null) {
             throw new RequestException("Bạn chưa chọn địa chỉ giao hàng.");
         }
-
         if (req.getServiceId() == null) {
             throw new RequestException("Bạn chưa chọn phương thức vận chuyển.");
         }
 
-        //Lấy địa chỉ
+        // Lấy địa chỉ & Kho
         CustomerAddress address = customerAddressRepository
                 .findByIdAndUserId(req.getAddressId(), userId)
                 .orElseThrow(() -> new RequestException("Địa chỉ giao hàng không hợp lệ."));
 
-        // lấy kho phù hợp từ địa chỉ
-        Warehouse warehouse = warehouseService.resolveWarehouseForAddress(address);
-        Long warehouseId = warehouse.getId();
-        Long branchId = (warehouse.getBranch() != null) ? warehouse.getBranch().getId() : null;
-
-        if (branchId == null) {
-            throw new RequestException("Kho không gắn với chi nhánh hợp lệ.");
-        }
-
-        //Kiểm tra tồn kho theo kho
-        for (CartItemRequest item : req.getCartItems()) {
-            if (item.getQuantity() == null || item.getQuantity() <= 0) {
-                throw new RequestException("Số lượng không hợp lệ cho SKU " + item.getSkuId());
-            }
-            int available = productStockService.getAvailable(item.getSkuId(), warehouseId);
-            if (available < item.getQuantity()) {
-                throw new RequestException(
-                        "Sản phẩm SKU " + item.getSkuId() + " không đủ tồn kho (còn " + available + ")."
-                );
+        // Chỉ cần Tổng tồn trong Tỉnh > 0 là cho phép đặt (dù có thể phải điều chuyển kho)
+        for (CartItemRequest ci : req.getCartItems()) {
+            int availableInProvince = productStockService.getAvailableInProvince(ci.getSkuId(), address.getProvinceId());
+            if (availableInProvince < ci.getQuantity()) {
+                ProductSKU sku = productSkuRepository.findById(ci.getSkuId()).orElseThrow();
+                throw new RequestException("Sản phẩm " + sku.getName() + " không đủ hàng tại khu vực của bạn (Còn: " + availableInProvince + ").");
             }
         }
 
-        // Tính subtotal + build orderItems + item preview
+        // Gọi sang WarehouseService để tìm kho tối ưu nhất (Đủ hàng > Gần nhất)
+        Warehouse hubWarehouse = warehouseService.findOptimalWarehouse(address, req.getCartItems());
+        Long branchId = hubWarehouse.getBranch().getId();
+
+        //Tính toán + Map DTO Voucher
         long itemsSubtotal = 0L;
         List<CheckoutItemPreviewResponse> itemPreviews = new ArrayList<>();
-        List<AddCartItemRequest> cartItemsForShipping = new ArrayList<>();
+        List<CartItemRequest> cartItemsForShipping = new ArrayList<>();
+        List<ApplyVoucherItemRequest> voucherItems = new ArrayList<>(); // List riêng cho Voucher
+
         for (CartItemRequest ci : req.getCartItems()) {
             ProductSKU sku = productSkuRepository.findById(ci.getSkuId())
                     .orElseThrow(() -> new RequestException("SKU " + ci.getSkuId() + " không tồn tại."));
@@ -95,20 +85,19 @@ public class CheckoutServiceImpl implements CheckoutService {
                 throw new RequestException("Số lượng không hợp lệ cho SKU " + ci.getSkuId());
             }
 
-            Long unitPrice = sku.getPrice() != null ? sku.getPrice() : 0L;
-            int quantity = Math.max(1, ci.getQuantity());
+            long unitPrice = sku.getPrice() != null ? sku.getPrice() : 0L;
             long lineTotal = unitPrice * ci.getQuantity();
             itemsSubtotal += lineTotal;
-
             Product product = sku.getProduct();
 
+            //Preview cho fe
             CheckoutItemPreviewResponse previewItem = CheckoutItemPreviewResponse.builder()
                     .skuId(sku.getId())
                     .categoryId(product.getCategory().getId())
                     .productId(product.getId())
-                    .productName(product != null ? product.getName() : null)
+                    .productName(product.getName())
                     .skuName(sku.getName())
-                    .imageUrl(product != null ? product.getImageUrl() : null)
+                    .imageUrl(product.getImageUrl())
                     .price(unitPrice)
                     .quantity(ci.getQuantity())
                     .lineTotal(lineTotal)
@@ -116,54 +105,52 @@ public class CheckoutServiceImpl implements CheckoutService {
                     .build();
             itemPreviews.add(previewItem);
 
-            // Chuyển dữ liệu sang AddCartItemRequest cho ShippingFeeCalculator
-            AddCartItemRequest cartItemForShipping = new AddCartItemRequest();
+            // List cho Shipping
+            CartItemRequest cartItemForShipping = new CartItemRequest();
             cartItemForShipping.setSkuId(sku.getId());
-            cartItemForShipping.setQuantity(quantity);
+            cartItemForShipping.setQuantity(ci.getQuantity());
             cartItemsForShipping.add(cartItemForShipping);
+
+            //  Voucher
+            ApplyVoucherItemRequest voucherItem = new ApplyVoucherItemRequest();
+            voucherItem.setSkuId(sku.getId());
+            voucherItem.setProductId(product.getId());
+            voucherItem.setCategoryId(product.getCategory().getId());
+            voucherItem.setPrice(unitPrice);
+            voucherItem.setQuantity(ci.getQuantity());
+            voucherItems.add(voucherItem);
         }
 
-        // Tính phí ship cho toàn bộ giỏ
-        GhnShippingFeeResponse feeRes = shippingFeeCalculatorService.calculateShippingFee(
-                branchId, address.getId(), cartItemsForShipping, req.getServiceId()
-        );
+        // Tính phí ship
         long shippingFee = 0L;
-        if (feeRes.getData() != null && feeRes.getData().getTotal() != null) {
-            shippingFee = feeRes.getData().getTotal();
+        try {
+            GhnShippingFeeResponse feeRes = shippingFeeCalculatorService.calculateShippingFee(
+                    branchId, address.getId(), cartItemsForShipping, req.getServiceId()
+            );
+            if (feeRes.getData() != null && feeRes.getData().getTotal() != null) {
+                shippingFee = feeRes.getData().getTotal();
+            }
+        } catch (Exception e) {
+            log.error("Lỗi tính phí ship checkout: {}", e.getMessage());
         }
-        // Voucher BE tự tính lại để tránh gian lận
 
+        // Tính Voucher
         long discount = 0L;
         String voucherCode = null;
 
         if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
             voucherCode = req.getVoucherCode().trim();
-
-            // Build item list
-            List<ApplyVoucherItemRequest> voucherItems = new ArrayList<>();
-            for (CheckoutItemPreviewResponse preview : itemPreviews) {
-                ApplyVoucherItemRequest itemReq = new ApplyVoucherItemRequest();
-                itemReq.setSkuId(preview.getSkuId());
-                itemReq.setProductId(preview.getProductId());
-                itemReq.setCategoryId(preview.getCategoryId());
-                itemReq.setPrice(preview.getPrice());
-                itemReq.setQuantity(preview.getQuantity());
-                voucherItems.add(itemReq);
-            }
-
-            // BE tự tính lại voucher
-            discount = voucherService.calculateDiscountForCheckout(voucherCode, voucherItems, itemsSubtotal, shippingFee
+            discount = voucherService.calculateDiscountForCheckout(
+                    voucherCode,
+                    voucherItems,
+                    itemsSubtotal,
+                    shippingFee
             );
-
-            if (discount < 0) discount = 0;
-            if (discount > itemsSubtotal + shippingFee)
-                discount = itemsSubtotal + shippingFee;
         }
 
-        long grandTotal = itemsSubtotal + shippingFee - discount;
-        if (grandTotal < 0) grandTotal = 0;
+        long grandTotal = Math.max(0, itemsSubtotal + shippingFee - discount);
 
-        // Build các block thông tin trả về cho FE
+        // Build Response
         OrderPreviewResponse orderPreview = OrderPreviewResponse.builder()
                 .items(itemPreviews)
                 .subtotal(itemsSubtotal)
@@ -184,15 +171,14 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .build();
 
         WarehouseInfo warehouseInfo = WarehouseInfo.builder()
-                .id(warehouseId)
-                .name(warehouse.getName())
+                .id(hubWarehouse.getId())
+                .name(hubWarehouse.getName())
                 .build();
 
         String paymentMethod = (req.getPaymentMethod() != null)
                 ? req.getPaymentMethod().toUpperCase()
                 : "COD";
 
-        //preview
         return CheckoutResponse.builder()
                 .orderPreview(orderPreview)
                 .shippingAddress(addressInfo)
@@ -201,5 +187,4 @@ public class CheckoutServiceImpl implements CheckoutService {
                 .paymentMethod(paymentMethod)
                 .build();
     }
-
 }
