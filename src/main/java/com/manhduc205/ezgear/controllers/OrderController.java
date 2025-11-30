@@ -2,6 +2,7 @@ package com.manhduc205.ezgear.controllers;
 
 import com.manhduc205.ezgear.dtos.request.order.CreateOrderRequest;
 import com.manhduc205.ezgear.dtos.responses.order.OrderPlacementResponse;
+import com.manhduc205.ezgear.dtos.responses.order.OrderResponse;
 import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,5 +30,9 @@ public class OrderController {
         );
 
         return ResponseEntity.ok(response);
+    }
+    @GetMapping("/{orderCode}")
+    public ResponseEntity<OrderResponse> getOrderDetail(@PathVariable String orderCode, @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(orderService.getOrderDetail(user.getId(), orderCode));
     }
 }

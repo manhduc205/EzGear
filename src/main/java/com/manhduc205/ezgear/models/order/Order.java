@@ -46,6 +46,9 @@ public class Order {
     @Column(name = "shipping_address_id")
     private Long shippingAddressId;
 
+    @Column(name = "shipping_service_id")
+    private Integer shippingServiceId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shipping_address_id", insertable = false, updatable = false)
     private CustomerAddress shippingAddress;

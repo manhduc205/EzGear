@@ -6,6 +6,10 @@ import com.manhduc205.ezgear.dtos.request.order.CreateOrderRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
 import com.manhduc205.ezgear.dtos.responses.VNPayResponse;
 import com.manhduc205.ezgear.dtos.responses.order.OrderPlacementResponse;
+import com.manhduc205.ezgear.dtos.responses.order.OrderResponse;
+import com.manhduc205.ezgear.enums.OrderStatus;
+import com.manhduc205.ezgear.enums.PaymentMethod;
+import com.manhduc205.ezgear.exceptions.AccessDeniedException;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.CustomerAddress;
 import com.manhduc205.ezgear.models.Product;
@@ -24,13 +28,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -58,7 +61,10 @@ public class OrderServiceImpl implements OrderService {
         if (req.getAddressId() == null) {
             throw new RequestException("Vui lòng chọn địa chỉ nhận hàng.");
         }
-
+        Integer serviceId = req.getShippingServiceId();
+        if (serviceId == null) {
+            throw new RequestException("Vui lòng chọn gói vận chuyển (serviceId is missing).");
+        }
         // Lấy thông tin Địa chỉ nhận hàng (Để biết Tỉnh nào -> Tìm kho)
         CustomerAddress address = addressRepo.findByIdAndUserId(req.getAddressId(), userId)
                 .orElseThrow(() -> new RequestException("Địa chỉ giao hàng không hợp lệ."));
@@ -148,10 +154,10 @@ public class OrderServiceImpl implements OrderService {
         //Lưu Order
         String orderCode = generateOrderCode();
 
-        String orderStatus = "WAITING_PAYMENT";
+        String orderStatus = OrderStatus.WAITING_PAYMENT.toString();
         String paymentStatus = "UNPAID";
-        if ("COD".equalsIgnoreCase(paymentMethod)) {
-            orderStatus = "PENDING_SHIPMENT";
+        if (PaymentMethod.COD.toString().equalsIgnoreCase(paymentMethod)) {
+            orderStatus = OrderStatus.PENDING_SHIPMENT.toString();
             paymentStatus = "PENDING"; // COD coi như chốt đơn
         }
 
@@ -164,9 +170,11 @@ public class OrderServiceImpl implements OrderService {
                 .shippingFee(shippingFee)
                 .grandTotal(grandTotal)
                 .shippingAddressId(req.getAddressId())
+                .shippingServiceId(serviceId)
                 .note(req.getNote())
                 .status(orderStatus)
                 .paymentStatus(paymentStatus)
+                .paymentMethod(PaymentMethod.valueOf(paymentMethod.toUpperCase()))
                 .build();
 
         Order savedOrder = orderRepo.save(order);
@@ -178,8 +186,7 @@ public class OrderServiceImpl implements OrderService {
         savedOrder.setItems(items);
 
         // Xử lý Kho & Thanh toán
-
-        // Dùng reserveStock cho CẢ HAI trường hợp vì hàm này có logic "tìm hàng từ kho khác"
+        // Dùng reserveStock cho 2 trường hợp vì hàm này có logic "tìm hàng từ kho khác"
 
         try {
             for (OrderItem it : items) {
@@ -190,7 +197,7 @@ public class OrderServiceImpl implements OrderService {
             throw new RequestException("Rất tiếc, sản phẩm vừa hết hàng khi đang xử lý.");
         }
 
-        if ("COD".equalsIgnoreCase(paymentMethod)) {
+        if (PaymentMethod.COD.toString().equalsIgnoreCase(paymentMethod)) {
             // Vì đã giữ chỗ thành công ở trên (bao gồm cả việc điều chuyển nếu cần)
             // Giờ ta Commit luôn (Trừ kho thật)
             stockService.commitReservation(savedOrder.getCode());
@@ -240,5 +247,46 @@ public class OrderServiceImpl implements OrderService {
             sb.append(chars.charAt(random.nextInt(chars.length())));
         }
         return datePart + sb.toString();
+    }
+
+    @Override
+    public OrderResponse getOrderDetail(Long userId, String orderCode) {
+        //check đơn hàng
+        Order order = orderRepo.findByCode(orderCode)
+                .orElseThrow(() -> new RequestException("Đơn hàng không tồn tại"));
+
+        if (!order.getUserId().equals(userId)) {
+            throw new AccessDeniedException("Bạn không có quyền xem đơn hàng này.");
+        }
+
+        List<OrderResponse.OrderItemResponse> itemResponses = order.getItems().stream()
+                .map(item -> OrderResponse.OrderItemResponse.builder()
+                        .productId(item.getProductId())
+                        .productName(item.getProductNameSnapshot()) // Lấy tên lúc mua
+                        .skuName(item.getSkuNameSnapshot())         // Lấy phân loại lúc mua
+                        .imageUrl(item.getImageUrlSnapshot())
+                        .quantity(item.getQuantity())
+                        .originalPrice(item.getUnitPrice() + item.getDiscountAmount())
+                        .price(item.getUnitPrice())
+                        .build())
+                .collect(Collectors.toList());
+
+        return OrderResponse.builder()
+                .id(order.getId())
+                .orderCode(order.getCode())
+                .status(order.getStatus())
+                .paymentStatus(order.getPaymentStatus())
+                .paymentMethod(order.getPaymentMethod().name()) // VD: COD, VNPAY
+                .receiverName(order.getShippingAddress().getReceiverName())
+                .receiverPhone(order.getShippingAddress().getReceiverPhone())
+                .receiverAddress(order.getShippingAddress().getAddressLine()) // Cần viết hàm này trong Entity Address
+
+                .merchandiseSubtotal(order.getSubtotal())
+                .shippingFee(order.getShippingFee())
+                .voucherDiscount(order.getDiscountTotal())
+                .grandTotal(order.getGrandTotal())
+                .createdAt(order.getCreatedAt())
+                .items(itemResponses)
+                .build();
     }
 }
