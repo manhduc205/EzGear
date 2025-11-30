@@ -117,10 +117,9 @@ public class ShipmentServiceImpl implements ShipmentService {
                     .weight(w)
                     .build());
         }
-        // int serviceId = order.getShippingServiceId() != null ? order.getShippingServiceId() : 53320;
-        int serviceId = 53320;
+        int serviceId = order.getShippingServiceId() != null ? order.getShippingServiceId() : 53320;
 
-        // D. Build Request
+        // Build Request
         return GhnCreateOrderRequest.builder()
                 .paymentTypeId(2) // người mua trả ship
                 .note(order.getNote())
@@ -130,17 +129,13 @@ public class ShipmentServiceImpl implements ShipmentService {
                 .toAddress(order.getShippingAddress().getAddressLine())
                 .toWardCode(order.getShippingAddress().getWardCode())
                 .toDistrictId(order.getShippingAddress().getDistrictId())
-
                 .codAmount(codAmount)
                 .insuranceValue(Math.min(order.getGrandTotal().intValue(), 5000000))
                 .serviceId(serviceId)
-
-                // Kích thước động
                 .weight(totalWeight)
                 .length(maxLength)
                 .width(maxWidth)
                 .height(totalHeight)
-
                 .items(items)
                 .shopId(Integer.parseInt(ghnProperties.getActiveShopId()))
                 .build();
