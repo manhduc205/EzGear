@@ -7,6 +7,7 @@ import com.manhduc205.ezgear.models.order.Order;
 import com.manhduc205.ezgear.models.order.Payment;
 import com.manhduc205.ezgear.repositories.OrderRepository;
 import com.manhduc205.ezgear.repositories.PaymentRepository;
+import com.manhduc205.ezgear.services.MailService;
 import com.manhduc205.ezgear.services.PaymentService;
 import com.manhduc205.ezgear.services.ProductStockService;
 import com.manhduc205.ezgear.services.WarehouseService;
@@ -33,7 +34,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final ProductStockService productStockService;
     private final WarehouseService warehouseService;
-
+    private final MailService mailService;
     @Value("${vnpay.tmnCode}")
     private String tmnCode;
 
@@ -284,6 +285,11 @@ public class PaymentServiceImpl implements PaymentService {
             } catch (Exception e) {
                 // Log lỗi nhưng vẫn trả về OK để VNPay không gọi lại
                 log.error("STOCK ERROR: Failed to commit stock for order {}", order.getCode(), e);
+            }
+            try {
+                mailService.sendOrderConfirmation(order);
+            } catch (Exception e) {
+                log.error("Không thể gửi email xác nhận sau khi thanh toán VNPay", e);
             }
 
             return "OK";

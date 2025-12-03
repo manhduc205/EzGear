@@ -43,14 +43,13 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepo;
     private final OrderItemRepository orderItemRepo;
     private final ProductSkuRepository skuRepo;
-    private final CustomerAddressRepository addressRepo; // Đổi tên cho gọn
-
-    // Service
+    private final CustomerAddressRepository addressRepo;
     private final ProductStockService stockService;
-    private final WarehouseService warehouseService; // Cần cái này để tìm Hub
+    private final WarehouseService warehouseService;
     private final ShippingFeeCalculatorService shippingFeeService;
     private final VoucherService voucherService;
     private final PaymentService paymentService;
+    private final MailService mailService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -69,7 +68,7 @@ public class OrderServiceImpl implements OrderService {
         CustomerAddress address = addressRepo.findByIdAndUserId(req.getAddressId(), userId)
                 .orElseThrow(() -> new RequestException("Địa chỉ giao hàng không hợp lệ."));
 
-        //  CHECK TỒN KHO THEO KHU VỰC (Location Context)
+        //  CHECK TỒN KHO THEO KHU VỰC (location context)
         // Chỉ cần Tổng tồn kho trong Tỉnh > 0 là cho phép đặt.
         for (CartItemRequest ci : req.getCartItems()) {
             int availableInProvince = stockService.getAvailableInProvince(ci.getSkuId(), address.getProvinceId());
@@ -79,7 +78,7 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // TÌM KHO GIAO HÀNG (HUB WAREHOUSE)
+        // tìm kho giao hàng (hub warehouse)
         // tự quyết định kho nào tối ưu nhất (Gần nhất + Đủ hàng nhất)
         Warehouse hubWarehouse = warehouseService.findOptimalWarehouse(address, req.getCartItems());
         Long hubWarehouseId = hubWarehouse.getId();
@@ -208,7 +207,7 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             paymentService.createCodPayment(paymentReq);
-
+            mailService.sendOrderConfirmation(savedOrder);
             return OrderPlacementResponse.builder()
                     .orderId(savedOrder.getId())
                     .orderCode(savedOrder.getCode())

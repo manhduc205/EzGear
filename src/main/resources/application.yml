@@ -41,7 +41,8 @@ spring:
   sendgrid:
     api-key: ${SENDGRID_API_KEY}
     from-email: ${SENDGRID_FROM_EMAIL}
-    templateId: ${SENDGRID_TEMPLATE_ID}
+    templateOrderSuccessfulId: ${SENDGRID_TEMPLATE_ORDER_ID}
+    templateOrderShippingId: ${SENDGRID_TEMPLATE_SHIPPING_ID}
     verificationLink: ${SENDGRID_VERIFICATION_LINK}
 
 jwt:

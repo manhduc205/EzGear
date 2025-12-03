@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface UserService {
     User createUser(UserDTO userDTO);
     Optional<User> findByEmail(String email);
+    String getUserEmail(Long userId);
 }
