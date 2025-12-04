@@ -50,7 +50,7 @@ public class OrderServiceImpl implements OrderService {
     private final VoucherService voucherService;
     private final PaymentService paymentService;
     private final MailService mailService;
-
+    private final CartService cartService;
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderPlacementResponse createOrder(CreateOrderRequest req, Long userId, String paymentMethod, HttpServletRequest httpRequest) {
