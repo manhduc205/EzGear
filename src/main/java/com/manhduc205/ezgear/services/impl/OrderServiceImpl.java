@@ -5,6 +5,7 @@ import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 import com.manhduc205.ezgear.dtos.request.order.CreateOrderRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
 import com.manhduc205.ezgear.dtos.responses.VNPayResponse;
+import com.manhduc205.ezgear.dtos.responses.order.OrderListResponse;
 import com.manhduc205.ezgear.dtos.responses.order.OrderPlacementResponse;
 import com.manhduc205.ezgear.dtos.responses.order.OrderResponse;
 import com.manhduc205.ezgear.enums.OrderStatus;
@@ -50,7 +51,7 @@ public class OrderServiceImpl implements OrderService {
     private final VoucherService voucherService;
     private final PaymentService paymentService;
     private final MailService mailService;
-    private final CartService cartService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderPlacementResponse createOrder(CreateOrderRequest req, Long userId, String paymentMethod, HttpServletRequest httpRequest) {
@@ -287,5 +288,34 @@ public class OrderServiceImpl implements OrderService {
                 .createdAt(order.getCreatedAt())
                 .items(itemResponses)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderListResponse> getMyOrders(Long userId) {
+        List<Order> orders = orderRepo.findByUserIdOrderByCreatedAtDesc(userId);
+
+        return orders.stream().map(order -> {
+            List<OrderListResponse.OrderListItem> itemResponses = order.getItems().stream()
+                    .map(item -> OrderListResponse.OrderListItem.builder()
+                            .productId(item.getProductId())
+                            .productName(item.getProductNameSnapshot())
+                            .skuName(item.getSkuNameSnapshot())
+                            .imageUrl(item.getImageUrlSnapshot())
+                            .quantity(item.getQuantity())
+                            .price(item.getUnitPrice())
+                            .build())
+                    .collect(Collectors.toList());
+
+            return OrderListResponse.builder()
+                    .id(order.getId())
+                    .orderCode(order.getCode())
+                    .status(order.getStatus())
+                    .paymentStatus(order.getPaymentStatus())
+                    .grandTotal(order.getGrandTotal())
+                    .createdAt(order.getCreatedAt())
+                    .items(itemResponses)
+                    .build();
+        }).collect(Collectors.toList());
     }
 }
