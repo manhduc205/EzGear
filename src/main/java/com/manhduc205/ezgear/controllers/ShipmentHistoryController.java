@@ -1,6 +1,7 @@
 package com.manhduc205.ezgear.controllers;
 
 import com.manhduc205.ezgear.dtos.responses.ShipmentHistoryResponse;
+import com.manhduc205.ezgear.dtos.responses.TrackingResponse;
 import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.ShipmentHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -21,5 +22,9 @@ public class ShipmentHistoryController {
     @GetMapping("/{shipmentId}")
     public ResponseEntity<?> getHistory(@PathVariable Long shipmentId, @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(historyService.getHistoryByShipmentId(shipmentId, user));
+    }
+    @GetMapping("/tracking/{orderId}")
+    public ResponseEntity<TrackingResponse> getTracking(@PathVariable Long orderId, @AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(historyService.getTrackingDetails(orderId, user.getId()));
     }
 }

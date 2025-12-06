@@ -1,15 +1,18 @@
 package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.responses.ShipmentHistoryResponse;
+import com.manhduc205.ezgear.dtos.responses.TrackingResponse;
 import com.manhduc205.ezgear.enums.GhnOrderStatus;
 import com.manhduc205.ezgear.enums.OrderStatus;
 import com.manhduc205.ezgear.enums.PaymentMethod;
+import com.manhduc205.ezgear.enums.ShipmentStatus;
 import com.manhduc205.ezgear.exceptions.AccessDeniedException;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.Shipment;
 import com.manhduc205.ezgear.models.ShipmentHistory;
 import com.manhduc205.ezgear.models.order.Order;
 import com.manhduc205.ezgear.repositories.OrderRepository;
+import com.manhduc205.ezgear.repositories.PaymentRepository;
 import com.manhduc205.ezgear.repositories.ShipmentHistoryRepository;
 import com.manhduc205.ezgear.repositories.ShipmentRepository;
 import com.manhduc205.ezgear.security.CustomUserDetails;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -65,6 +69,71 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
                         .build())
                 .collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TrackingResponse getTrackingDetails(Long orderId, Long userId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RequestException("Đơn hàng không tồn tại"));
+
+        if (!order.getUserId().equals(userId)) {
+            throw new AccessDeniedException("Bạn không có quyền xem hành trình đơn hàng này.");
+        }
+
+        Shipment shipment = shipmentRepository.findByOrderId(orderId).orElse(null);
+
+        List<TrackingResponse.TrackingStep> timeline = new ArrayList<>();
+
+        // Đặt hàng thành công
+        timeline.add(TrackingResponse.TrackingStep.builder()
+                .title("Đơn hàng đã đặt")
+                .description("EzGear đang chuẩn bị hàng")
+                .time(order.getCreatedAt())
+                .isCompleted(true)
+                .build());
+
+        // Lịch sử vận chuyển
+        if (shipment != null) {
+            List<ShipmentHistory> histories = shipmentHistoryRepository.findByShipmentIdOrderByEventTimeDesc(shipment.getId());
+
+            for (ShipmentHistory h : histories) {
+                String displayTitle = h.getStatus();
+                // Map Enum sang tiếng Việt
+                GhnOrderStatus ghnStatus = GhnOrderStatus.fromCode(h.getStatus());
+                if (ghnStatus != null) {
+                    displayTitle = ghnStatus.getDescription();
+                } else if (ShipmentStatus.READY_TO_PICK.name().equals(h.getStatus())) {
+                    displayTitle = "Đang chờ lấy hàng";
+                }
+
+                timeline.add(TrackingResponse.TrackingStep.builder()
+                        .title(displayTitle)
+                        .description(h.getNote())
+                        .time(h.getEventTime())
+                        .isCompleted(true)
+                        .build());
+            }
+        }
+
+        // Sắp xếp lại Timeline (Mới nhất lên đầu)
+        timeline.sort((s1, s2) -> s2.getTime().compareTo(s1.getTime()));
+
+        String currentStatusStr = timeline.isEmpty() ? "Đang xử lý" : timeline.get(0).getTitle();
+        String trackingCodeStr = shipment != null ? shipment.getTrackingCode() : null;
+        String receiverAddr = order.getShippingAddress() != null ? order.getShippingAddress().getAddressLine() : "";
+
+        // Lấy thời gian giao dự kiến (nếu cần có thể lưu vào Shipment khi tạo đơn)
+        String expectedTime = "Đang cập nhật";
+
+        return TrackingResponse.builder()
+                .orderCode(order.getCode())
+                .trackingCode(trackingCodeStr)
+                .currentStatus(currentStatusStr)
+                .receiverAddress(receiverAddr)
+                .expectedDeliveryTime(expectedTime)
+                .timeline(timeline)
+                .build();
+    }
     @Override
     @Transactional
     public void processWebhook(GhnWebhookRequest req) {
@@ -100,6 +169,7 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
         // cập nhật trạng thái đơn hàng
         updateOrderStatusFromGhn(shipment.getOrder(), ghnStatus);
     }
+
 
     // Logic mapping quan trọng nhất
     private void updateOrderStatusFromGhn(Order order, GhnOrderStatus ghnStatus) {
