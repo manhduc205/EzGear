@@ -14,7 +14,6 @@ import java.util.List;
 @AllArgsConstructor
 public class GhnCreateOrderRequest {
 
-    // --- Thông tin người nhận (BẮT BUỘC) ---
     @JsonProperty("to_name")
     private String toName;
 
@@ -39,35 +38,30 @@ public class GhnCreateOrderRequest {
     @JsonProperty("required_note")
     private String requiredNote; //  KHONGCHOXEMHANG, CHOXEMHANGKHONGTHU, CHOTHUHANG
 
-
-    // --- Thông tin hàng hóa & COD ---
     @JsonProperty("cod_amount")
     private Integer codAmount; // Tiền thu hộ (VND)
 
     @JsonProperty("insurance_value")
     private Integer insuranceValue; // Giá trị bảo hiểm (thường = giá trị đơn hàng)
 
-    // --- Kích thước & Trọng lượng (BẮT BUỘC) ---
     @JsonProperty("weight")
-    private Integer weight; // Gram
+    private Integer weight;
 
     @JsonProperty("length")
-    private Integer length; // CM
+    private Integer length;
 
     @JsonProperty("width")
-    private Integer width; // CM
+    private Integer width;
 
     @JsonProperty("height")
-    private Integer height; // CM
+    private Integer height;
 
-    // --- Dịch vụ vận chuyển ---
     @JsonProperty("service_id")
-    private Integer serviceId; // ID gói dịch vụ (lấy từ API available-services)
+    private Integer serviceId;
 
     @JsonProperty("shop_id")
-    private Integer shopId; // ID kho hàng trên GHN
+    private Integer shopId;
 
-    // --- Danh sách sản phẩm ---
     @JsonProperty("items")
     private List<Item> items;
 
@@ -80,15 +74,15 @@ public class GhnCreateOrderRequest {
         private String name;
 
         @JsonProperty("code")
-        private String code; // SKU code
+        private String code;
 
         @JsonProperty("quantity")
         private Integer quantity;
 
         @JsonProperty("price")
-        private Integer price; // Giá sản phẩm
+        private Integer price;
 
         @JsonProperty("weight")
-        private Integer weight; // Trọng lượng từng món
+        private Integer weight;
     }
 }
