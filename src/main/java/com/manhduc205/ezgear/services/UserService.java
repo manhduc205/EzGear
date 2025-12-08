@@ -12,4 +12,6 @@ public interface UserService {
     User createUser(UserDTO userDTO);
     Optional<User> findByEmail(String email);
     String getUserEmail(Long userId);
+    User getUserById(Long id);
+    boolean isSysAdmin(User user);
 }

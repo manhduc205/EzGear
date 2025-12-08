@@ -1,6 +1,7 @@
 package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.UserDTO;
+import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.models.Role;
 import com.manhduc205.ezgear.models.User;
 import com.manhduc205.ezgear.models.UserRole;
@@ -40,8 +41,7 @@ public class UserServiceImpl implements UserService {
             throw new BadCredentialsException("You cannot self-register as system-admin");
         }
         boolean staffFlag = false;
-        if (role.getCode().equalsIgnoreCase("SYS_ADMIN")  || role.getCode().equalsIgnoreCase("ADMIN")
-                || role.getCode().equalsIgnoreCase("MANAGER")) {
+        if (role.getCode().equalsIgnoreCase("SYS_ADMIN")  || role.getCode().equalsIgnoreCase("ADMIN")) {
             staffFlag = true;
         }
         // kiểm tra xem nếu có accontId, không yêu cầu pass
@@ -74,5 +74,16 @@ public class UserServiceImpl implements UserService {
                 .map(User::getEmail)
                 .orElse("default@example.com");
 
+    }
+    @Override
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new DataNotFoundException("Không tìm thấy người dùng với ID: " + id));
+    }
+    @Override
+    public boolean isSysAdmin(User user) {
+        if (user.getUserRoles() == null) return false;
+        return user.getUserRoles().stream()
+                .anyMatch(ur -> ur.getRole().getCode().equalsIgnoreCase("SYS_ADMIN"));
     }
 }
