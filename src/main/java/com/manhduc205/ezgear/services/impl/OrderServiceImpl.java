@@ -11,22 +11,18 @@ import com.manhduc205.ezgear.dtos.responses.order.OrderResponse;
 import com.manhduc205.ezgear.enums.OrderStatus;
 import com.manhduc205.ezgear.enums.PaymentMethod;
 import com.manhduc205.ezgear.exceptions.AccessDeniedException;
+import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.exceptions.RequestException;
-import com.manhduc205.ezgear.models.CustomerAddress;
-import com.manhduc205.ezgear.models.Product;
-import com.manhduc205.ezgear.models.ProductSKU;
-import com.manhduc205.ezgear.models.Warehouse;
+import com.manhduc205.ezgear.models.*;
 import com.manhduc205.ezgear.models.order.Order;
 import com.manhduc205.ezgear.models.order.OrderItem;
-import com.manhduc205.ezgear.repositories.CustomerAddressRepository;
-import com.manhduc205.ezgear.repositories.OrderItemRepository;
-import com.manhduc205.ezgear.repositories.OrderRepository;
-import com.manhduc205.ezgear.repositories.ProductSkuRepository;
+import com.manhduc205.ezgear.repositories.*;
 import com.manhduc205.ezgear.services.*;
 import com.manhduc205.ezgear.shipping.service.ShippingFeeCalculatorService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
@@ -34,6 +30,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,13 +41,16 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepo;
     private final OrderItemRepository orderItemRepo;
     private final ProductSkuRepository skuRepo;
+    private final UserRepository userRepo;
     private final CustomerAddressRepository addressRepo;
     private final ProductStockService stockService;
+    private final StockTransferService stockTransferService;
     private final WarehouseService warehouseService;
     private final ShippingFeeCalculatorService shippingFeeService;
     private final VoucherService voucherService;
     private final PaymentService paymentService;
     private final MailService mailService;
+
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -190,11 +190,36 @@ public class OrderServiceImpl implements OrderService {
 
         try {
             for (OrderItem it : items) {
-                stockService.reserveStock(savedOrder.getCode(), it.getSkuId(), hubWarehouseId, it.getQuantity());
+                // Tìm hàng trên toàn tỉnh, ưu tiên Hub
+                Map<Long, Integer> allocationMap = stockService.reserveStockDistributed(
+                        savedOrder.getCode(),
+                        it.getSkuId(),
+                        it.getQuantity(),
+                        hubWarehouseId,      // Kho ưu tiên (Hub)
+                        address.getProvinceId() // Context (Tỉnh)
+                );
+
+                // Duyệt kết quả phân bổ
+                for (Map.Entry<Long, Integer> entry : allocationMap.entrySet()) {
+                    Long sourceWhId = entry.getKey(); // Kho lấy hàng
+                    Integer qty = entry.getValue();   // Số lượng lấy
+
+                    // Nếu hàng KHÔNG nằm ở Hub -> Tạo phiếu chuyển tự động về Hub
+                    if (!sourceWhId.equals(hubWarehouseId)) {
+                        stockTransferService.createAutoTransfer(
+                                sourceWhId,     // Từ kho vệ tinh
+                                hubWarehouseId, // Về kho Hub
+                                it.getSkuId(),
+                                qty,
+                                savedOrder.getCode()
+                        );
+                    }
+                    // Hàm reserveStockDistributed bên trong đã thực hiện giữ chỗ
+                    // tại từng kho tương ứng rồi, nên ở đây không cần gọi reserveStock nữa.
+                }
             }
         } catch (Exception e) {
-            // Nếu giữ chỗ thất bại  -> Rollback toàn bộ
-            throw new RequestException("Rất tiếc, sản phẩm vừa hết hàng khi đang xử lý.");
+            throw new RequestException("Rất tiếc, một số sản phẩm vừa hết hàng trong quá trình xử lý.");
         }
 
         if (PaymentMethod.COD.toString().equalsIgnoreCase(paymentMethod)) {
@@ -277,9 +302,9 @@ public class OrderServiceImpl implements OrderService {
                 .status(order.getStatus())
                 .paymentStatus(order.getPaymentStatus())
                 .paymentMethod(order.getPaymentMethod().name()) // VD: COD, VNPAY
-                .receiverName(order.getShippingAddress().getReceiverName())
-                .receiverPhone(order.getShippingAddress().getReceiverPhone())
-                .receiverAddress(order.getShippingAddress().getAddressLine()) // Cần viết hàm này trong Entity Address
+                .receiverName(order.getShippingAddress() != null ? order.getShippingAddress().getReceiverName() : "")
+                .receiverPhone(order.getShippingAddress() != null ? order.getShippingAddress().getReceiverPhone() : "")
+                .receiverAddress(order.getShippingAddress() != null ? order.getShippingAddress().getAddressLine() : "")
 
                 .merchandiseSubtotal(order.getSubtotal())
                 .shippingFee(order.getShippingFee())
@@ -312,6 +337,63 @@ public class OrderServiceImpl implements OrderService {
                     .orderCode(order.getCode())
                     .status(order.getStatus())
                     .paymentStatus(order.getPaymentStatus())
+                    .grandTotal(order.getGrandTotal())
+                    .createdAt(order.getCreatedAt())
+                    .items(itemResponses)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
+    @Override
+    @Transactional(readOnly = true) // Thêm cái này để đảm bảo load Lazy list items không bị lỗi
+    public List<OrderResponse> getOrdersForPicking(Long userId) {
+        User user = userRepo.findById(userId).orElseThrow(() -> new DataNotFoundException("User not found"));
+
+        boolean isSysAdmin = user.getUserRoles() != null && user.getUserRoles().stream()
+                .anyMatch(ur -> ur.getRole().getCode().equalsIgnoreCase("SYS_ADMIN"));
+
+        Long branchId = user.getBranchId();
+
+        if (branchId == null && !isSysAdmin) {
+            return List.of();
+        }
+
+        List<String> readyStatuses = List.of(OrderStatus.PENDING_SHIPMENT.toString(), "PAID");
+        List<Order> orders;
+
+        if (isSysAdmin) {
+            // có thể dùng findByStatusIn
+            orders = orderRepo.findAll();
+        } else {
+            orders = orderRepo.findForPicking(branchId, readyStatuses);
+        }
+
+        // 3. Mapping Inline (Order -> DTO) ngay tại đây
+        return orders.stream().map(order -> {
+            // Map OrderItem trước
+            List<OrderResponse.OrderItemResponse> itemResponses = order.getItems().stream()
+                    .map(item -> OrderResponse.OrderItemResponse.builder()
+                            .productId(item.getProductId())
+                            .productName(item.getProductNameSnapshot())
+                            .skuName(item.getSkuNameSnapshot()) // Đã chứa Size/Màu
+                            .quantity(item.getQuantity())
+                            .price(item.getUnitPrice())
+                            .imageUrl(item.getImageUrlSnapshot())
+                            .build())
+                    .collect(Collectors.toList());
+
+            // Map Order Response
+            return OrderResponse.builder()
+                    .id(order.getId())
+                    .orderCode(order.getCode())
+                    .status(order.getStatus())
+                    .paymentStatus(order.getPaymentStatus())
+                    .paymentMethod(order.getPaymentMethod().name())
+                    // Null check an toàn cho Address
+                    .receiverName(order.getShippingAddress() != null ? order.getShippingAddress().getReceiverName() : "")
+                    .receiverPhone(order.getShippingAddress() != null ? order.getShippingAddress().getReceiverPhone() : "")
+                    .receiverAddress(order.getShippingAddress() != null ? order.getShippingAddress().getAddressLine() : "")
                     .grandTotal(order.getGrandTotal())
                     .createdAt(order.getCreatedAt())
                     .items(itemResponses)

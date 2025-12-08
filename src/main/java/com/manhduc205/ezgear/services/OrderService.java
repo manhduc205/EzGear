@@ -14,4 +14,5 @@ public interface OrderService {
     OrderPlacementResponse createOrder(CreateOrderRequest req, Long userId, String paymentMethod, HttpServletRequest httpRequest);
     OrderResponse getOrderDetail(Long userId, String orderCode);
     List<OrderListResponse> getMyOrders(Long userId);
+    List<OrderResponse> getOrdersForPicking(Long userId);
 }
