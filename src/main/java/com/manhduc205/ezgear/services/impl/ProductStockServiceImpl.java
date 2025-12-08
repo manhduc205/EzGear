@@ -6,6 +6,7 @@ import com.manhduc205.ezgear.dtos.responses.StockResponse;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.models.ProductStock;
+import com.manhduc205.ezgear.models.User;
 import com.manhduc205.ezgear.models.Warehouse;
 import com.manhduc205.ezgear.repositories.OrderRepository;
 import com.manhduc205.ezgear.repositories.ProductSkuRepository;
@@ -13,13 +14,16 @@ import com.manhduc205.ezgear.repositories.ProductStockRepository;
 import com.manhduc205.ezgear.repositories.WarehouseRepository;
 import com.manhduc205.ezgear.services.ProductStockService;
 import com.manhduc205.ezgear.services.StockTransferService;
+import com.manhduc205.ezgear.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -31,7 +35,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     private final WarehouseRepository warehouseRepository;
     private final ProductSkuRepository productSkuRepository;
     private final OrderRepository orderRepository;
-
+    private final UserService userService;
     // vì stockTransferService cần productStockService để trừ/ cộng kho
     // producstStockService cũng cần stockTransferService để tạo phiếu chuyển kho tự động
     // nên ta dùng @Autowired @Lazy để tránh vòng phụ thuộc giữa 2 service @lazy giúp hoãn việc khởi tạo bean đến khi nó thực sự được sử dụng
@@ -85,76 +89,22 @@ public class ProductStockServiceImpl implements ProductStockService {
 
 
     @Override
-    public List<StockResponse> getAllStock() {
-        return productStockRepository.findAll()
-                .stream()
-                .map(stock -> StockResponse.builder()
-                        .sku(stock.getProductSku().getSku())
-                        .skuName(stock.getProductSku().getName())
-                        .warehouseName(stock.getWarehouse().getName())
-                        .qtyOnHand(stock.getQtyOnHand())
-                        .qtyReserved(stock.getQtyReserved())
-                        .safetyStock(stock.getSafetyStock())
-                        .available(stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock())
-                        .build()
-                )
-                .toList();
-    }
+    public List<StockResponse> getAllStock(Long userId) {
+        User user = userService.getUserById(userId);
 
-    @Override
-    @Transactional
-    // giữ chỗ, tìm nguồn hàng từ các kho
-    public void reserveStock(String orderCode, Long skuId, Long warehouseId, int qty) {
-        if (warehouseId == null) throw new RequestException("Kho không hợp lệ");
+        List<ProductStock> stocks;
 
-        Long mainWarehouseId = warehouseId; // Đây là Kho Hub (Kho Đích)
-
-        // Thử giữ chỗ tại Kho Hub (Kho Chính)
-        int currentAvailable = getAvailable(skuId, mainWarehouseId);
-        int quantityToReserveAtMain = Math.min(currentAvailable, qty);
-        int quantityNeededFromOthers = qty - quantityToReserveAtMain;
-
-        if (quantityToReserveAtMain > 0) {
-            // giữ chỗ tại kho hub
-            productStockRepository.reserveStock(skuId, mainWarehouseId, quantityToReserveAtMain);
-        }
-
-        // Nếu thiếu -> Vét hàng ở các kho khác CÙNG TỈNH (Kho Phụ)
-        if (quantityNeededFromOthers > 0) {
-            Integer provinceId = warehouseRepository.findById(mainWarehouseId).get().getBranch().getProvinceId();
-            List<Warehouse> otherWarehouses = warehouseRepository.findActiveWarehousesByProvince(provinceId);
-
-            for (Warehouse warehouse : otherWarehouses) {
-                if (warehouse.getId().equals(mainWarehouseId)) continue; // Bỏ qua kho chính
-                if (quantityNeededFromOthers == 0) break;
-
-                int avail = getAvailable(skuId, warehouse.getId()); // Tồn kho khả dụng tại kho phụ
-                if (avail > 0) {
-                    int take = Math.min(avail, quantityNeededFromOthers);
-
-                    // Giữ chỗ tại Kho Phụ
-                    int updated = productStockRepository.reserveStock(skuId, warehouse.getId(), take);
-
-                    if (updated > 0) {
-                        // Tạo phiếu chuyển kho tự động
-                        // Từ Kho Phụ  -> Về Kho Hub
-                        stockTransferService.createAutoTransfer(
-                                warehouse.getId(),       // From
-                                mainWarehouseId,  // To
-                                skuId,
-                                take,
-                                orderCode
-                        );
-
-                        quantityNeededFromOthers -= take; // Cập nhật số lượng còn thiếu
-                    }
-                }
+        if (userService.isSysAdmin(user)) {
+            stocks = productStockRepository.findAll();
+        } else {
+            Long branchId = user.getBranchId();
+            if (branchId == null) {
+                return List.of();
             }
+            stocks = productStockRepository.findAllByBranchId(branchId);
         }
 
-        if (quantityNeededFromOthers > 0) {
-            throw new RequestException("Lỗi hệ thống: Tồn kho không đồng bộ (Không đủ hàng để điều chuyển).");
-        }
+        return stocks.stream().map(this::mapToStockResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -165,45 +115,63 @@ public class ProductStockServiceImpl implements ProductStockService {
                 .orElse(false);
     }
 
+    // chốt đơn / trừ kho thật
+    // [SỬA LẠI] Logic trừ kho thật khi Giao Hàng (SHIPPING)
     @Override
     @Transactional
-    //Chốt đơn / Xuất kho thật
     public void commitReservation(String orderCode) {
         var order = orderRepository.findByCode(orderCode)
-                .orElseThrow(() -> new RequestException("Order not found when committing reservation"));
+                .orElseThrow(() -> new RequestException("Order not found"));
 
-        if (order.getItems() == null || order.getItems().isEmpty()) {
-            return;
-        }
-        Long warehouseId = getWarehouseIdByBranch(order.getBranchId());
+        if (order.getItems() == null || order.getItems().isEmpty()) return;
+
+        Long hubWarehouseId = getWarehouseIdByBranch(order.getBranchId());
+
         for (var it : order.getItems()) {
-            int updated = productStockRepository.commitReserved(it.getSkuId(), warehouseId, it.getQuantity());
-            if (updated == 0) {
-                throw new RequestException("Không thể commit giữ chỗ cho SKU " + it.getSkuId());
+            int qtyToCommit = it.getQuantity(); // Ví dụ: 10
+
+            // Ktra Hub đang giữ chỗ (Reserved) bao nhiêu?
+            ProductStock hubStock = productStockRepository.findByProductSkuIdAndWarehouseId(it.getSkuId(), hubWarehouseId).orElse(null);
+            int reservedAtHub = (hubStock != null) ? hubStock.getQtyReserved() : 0;
+
+            // Tính toán phân bổ trừ
+            // Ưu tiên trừ vào phần đã giữ chỗ
+            int deductFromReserved = Math.min(qtyToCommit, reservedAtHub);
+            // Phần còn lại trừ thẳng vào OnHand (Đây là phần hàng từ vệ tinh vừa nhập kho xong)
+            int deductDirect = qtyToCommit - deductFromReserved;
+
+            if (deductFromReserved > 0) {
+                productStockRepository.commitReserved(it.getSkuId(), hubWarehouseId, deductFromReserved);
+            }
+            if (deductDirect > 0) {
+                int directUpdated = productStockRepository.reduceDirect(it.getSkuId(), hubWarehouseId, deductDirect);
+                if (directUpdated == 0) {
+                    throw new RequestException("Lỗi kho nghiêm trọng: Hub không đủ hàng thực tế để giao đi (Thiếu OnHand).");
+                }
             }
         }
     }
 
     @Override
     @Transactional
-    //Nhả hàng / Hủy giữ chỗ
     public void releaseReservation(String orderCode) {
-        var order = orderRepository.findByCode(orderCode)
-                .orElseThrow(() -> new RequestException("Order not found when releasing reservation"));
-
-        if (order.getItems() == null || order.getItems().isEmpty()) {
-            return;
-        }
+        var order = orderRepository.findByCode(orderCode).orElseThrow(() -> new RequestException("Order not found"));
+        if (order.getItems() == null) return;
         Long warehouseId = getWarehouseIdByBranch(order.getBranchId());
+
         for (var it : order.getItems()) {
-            productStockRepository.releaseReserved(it.getSkuId(), warehouseId, it.getQuantity());
+            ProductStock hubStock = productStockRepository.findByProductSkuIdAndWarehouseId(it.getSkuId(), warehouseId).orElse(null);
+            if (hubStock != null && hubStock.getQtyReserved() > 0) {
+                int amountToRelease = Math.min(it.getQuantity(), hubStock.getQtyReserved());
+                productStockRepository.releaseReserved(it.getSkuId(), warehouseId, amountToRelease);
+            }
         }
     }
 
     @Override
     @Transactional
     public void reduceStockDirect(Long skuId, Long warehouseId, int qty) {
-        // SỬA: Nhận trực tiếp WarehouseId
+        //  Nhận trực tiếp WarehouseId
         if (warehouseId == null) throw new RequestException("Kho không hợp lệ");
 
         int updated = productStockRepository.reduceDirect(skuId, warehouseId, qty);
@@ -222,10 +190,16 @@ public class ProductStockServiceImpl implements ProductStockService {
         return totalAvailable == null ? 0 : Math.max(0, totalAvailable);
     }
 
+    // nhả giữ chỗ thủ công (Dùng cho khi hủy phiếu)
     @Override
-    public int getTotalSystemStock(Long skuId) {
-        Integer total = productStockRepository.sumTotalAvailable(skuId);
-        return total == null ? 0 : Math.max(0, total);
+    @Transactional
+    public void releaseStock(Long skuId, Long warehouseId, int qty) {
+        // Chỉ giảm Reserved, KHÔNG giảm OnHand (vì hàng vẫn ở trong kho)
+        int updated = productStockRepository.releaseReserved(skuId, warehouseId, qty);
+
+        if (updated == 0) {
+            throw new RequestException("Lỗi kho: Không thể nhả giữ chỗ (Số lượng giữ chỗ thực tế ít hơn yêu cầu).");
+        }
     }
 
     @Override
@@ -271,5 +245,128 @@ public class ProductStockServiceImpl implements ProductStockService {
 
             productStockRepository.save(newStock);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Map<Long, Integer>> getStockMatrix(List<Long> warehouseIds, List<Long> skuIds) {
+        List<ProductStock> stocks = productStockRepository.findAllBySkuIdInAndWarehouseIdIn(skuIds, warehouseIds);
+
+        // Map<WarehouseID, Map<SkuID, AvailableQty>>
+        Map<Long, Map<Long, Integer>> result = new HashMap<>();
+
+        // Init map rỗng cho các kho để tránh NullPointer
+        for (Long whId : warehouseIds) {
+            result.put(whId, new HashMap<>());
+        }
+
+        for (ProductStock ps : stocks) {
+            int available = ps.getQtyOnHand() - ps.getQtyReserved() - ps.getSafetyStock();
+            if (available < 0) available = 0;
+
+            Long whId = ps.getWarehouse().getId();
+            Long sId = ps.getProductSku().getId();
+
+            result.get(whId).put(sId, available);
+        }
+
+        return result;
+    }
+
+    @Override
+    public List<StockResponse> getStockByBranchId(Long branchId) {
+        return productStockRepository.findAllByBranchId(branchId).stream()
+                .map(this::mapToStockResponse)
+                .collect(Collectors.toList());
+    }
+    // hàm này dùng cho admin tự bấm chuyển hàng
+    @Override
+    @Transactional
+    public void reserveStock(String orderCode, Long skuId, Long warehouseId, int qty) {
+        if (warehouseId == null) throw new RequestException("Kho nguồn không hợp lệ");
+
+        // Kiểm tra tồn kho khả dụng tại đúng kho đó
+        int available = getAvailable(skuId, warehouseId);
+
+        if (available < qty) {
+            ProductSKU sku = productSkuRepository.findById(skuId).orElseThrow();
+            Warehouse wh = warehouseRepository.findById(warehouseId).orElseThrow();
+            throw new RequestException(
+                    String.format("Kho '%s' không đủ hàng. Cần: %d, Có sẵn: %d",
+                            wh.getName(), qty, available)
+            );
+        }
+
+        // giữ chỗ (Chỉ trừ tại kho này)
+        productStockRepository.reserveStock(skuId, warehouseId, qty);
+    }
+    // hàm này dùng cho đặt hàng tự động, ưu tiên kho Hub rồi mới đến kho vệ tinh trong tỉnh
+    @Override
+    @Transactional
+    public Map<Long, Integer> reserveStockDistributed(String orderCode, Long skuId, int requestedQty, Long hubWarehouseId, Integer provinceId) {
+        Map<Long, Integer> allocationResult = new HashMap<>();
+        int remainingNeeded = requestedQty;
+
+        // 1. Ưu tiên lấy tại Hub (Kho giao hàng) trước
+        // Tìm record tồn kho tại Hub
+        ProductStock hubStock = productStockRepository.findByProductSkuIdAndWarehouseId(skuId, hubWarehouseId).orElse(null);
+
+        if (hubStock != null) {
+            int availableAtHub = hubStock.getQtyOnHand() - hubStock.getQtyReserved() - hubStock.getSafetyStock();
+            if (availableAtHub > 0) {
+                int takeFromHub = Math.min(availableAtHub, remainingNeeded);
+
+                // Thực hiện giữ chỗ DB
+                productStockRepository.reserveStock(skuId, hubWarehouseId, takeFromHub);
+
+                // Ghi vào map kết quả
+                allocationResult.put(hubWarehouseId, takeFromHub);
+                remainingNeeded -= takeFromHub;
+            }
+        }
+
+        // Nếu Hub đã đủ -> Return ngay
+        if (remainingNeeded == 0) return allocationResult;
+
+        // Nếu Hub thiếu -> Quét các kho vệ tinh trong cùng Tỉnh
+        List<ProductStock> provinceStocks = productStockRepository.findAvailableInProvince(skuId, provinceId);
+
+        for (ProductStock pStock : provinceStocks) {
+            // Bỏ qua Hub (vì đã lấy ở trên rồi)
+            if (pStock.getWarehouse().getId().equals(hubWarehouseId)) continue;
+
+            int available = pStock.getQtyOnHand() - pStock.getQtyReserved() - pStock.getSafetyStock();
+            if (available > 0) {
+                int take = Math.min(available, remainingNeeded);
+
+                // Giữ chỗ tại kho vệ tinh
+                productStockRepository.reserveStock(skuId, pStock.getWarehouse().getId(), take);
+
+                // Ghi vào map
+                allocationResult.put(pStock.getWarehouse().getId(), take);
+                remainingNeeded -= take;
+            }
+
+            if (remainingNeeded == 0) break; // Đã đủ hàng
+        }
+
+        // 3. Check cuối cùng
+        if (remainingNeeded > 0) {
+            // Rollback nếu không đủ hàng
+            throw new RequestException("Sản phẩm vừa hết hàng trong quá trình xử lý phân bổ.");
+        }
+
+        return allocationResult;
+    }
+    private StockResponse mapToStockResponse(ProductStock stock) {
+        return StockResponse.builder()
+                .sku(stock.getProductSku().getSku())
+                .skuName(stock.getProductSku().getName())
+                .warehouseName(stock.getWarehouse().getName())
+                .qtyOnHand(stock.getQtyOnHand())
+                .qtyReserved(stock.getQtyReserved())
+                .safetyStock(stock.getSafetyStock())
+                .available(Math.max(0, stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock()))
+                .build();
     }
 }

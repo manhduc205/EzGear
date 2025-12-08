@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ProductStockRepository extends JpaRepository<ProductStock, Long> {
@@ -64,8 +65,30 @@ public interface ProductStockRepository extends JpaRepository<ProductStock, Long
     @Modifying
     @Query("UPDATE ProductStock ps SET ps.qtyOnHand = ps.qtyOnHand + :qty " +
             "WHERE ps.productSku.id = :skuId AND ps.warehouse.id = :warehouseId")
-    int increaseStock(@Param("skuId") Long skuId,
-                      @Param("warehouseId") Long warehouseId,
-                      @Param("qty") int qty);
+    int increaseStock(@Param("skuId") Long skuId, @Param("warehouseId") Long warehouseId, @Param("qty") int qty);
+
+    // lấy tồn kho tồn kho dựa trên Branch ID
+    @Query("SELECT ps FROM ProductStock ps WHERE ps.warehouse.branch.id = :branchId")
+    List<ProductStock> findAllByBranchId(@Param("branchId") Long branchId);
+
+    // Lấy tất cả tồn kho của list SKU trong list Kho
+    @Query("SELECT ps FROM ProductStock ps " +
+            "WHERE ps.productSku.id IN :skuIds " +
+            "AND ps.warehouse.id IN :warehouseIds")
+    List<ProductStock> findAllBySkuIdInAndWarehouseIdIn(
+            @Param("skuIds") List<Long> skuIds,
+            @Param("warehouseIds") List<Long> warehouseIds
+    );
+    @Query("SELECT ps FROM ProductStock ps " +
+            "JOIN ps.warehouse w " +
+            "JOIN w.branch b " +
+            "WHERE ps.productSku.id = :skuId " +
+            "AND b.provinceId = :provinceId " +
+            "AND w.isActive = true " +
+            "AND (ps.qtyOnHand - ps.qtyReserved - ps.safetyStock) > 0 " +
+            "ORDER BY (ps.qtyOnHand - ps.qtyReserved - ps.safetyStock) DESC")
+    List<ProductStock> findAvailableInProvince(@Param("skuId") Long skuId,
+                                               @Param("provinceId") Integer provinceId);
+    
 }
 
