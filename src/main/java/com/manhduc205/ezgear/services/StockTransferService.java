@@ -9,7 +9,7 @@ import java.util.List;
 public interface StockTransferService {
     StockTransfer createTransfer(StockTransferRequest req, Long userId);
     void createAutoTransfer(Long fromWhId, Long toWhId, Long skuId, int qty, String refOrderCode);
-    void shipTransfer(Long transferId);
-    void receiveTransfer(Long transferId);
-    List<StockTransferResponse> getAll();
+    void shipTransfer(Long transferId, Long userId);
+    void receiveTransfer(Long transferId, Long userId);
+    List<StockTransferResponse> getAll(Long userId);
 }

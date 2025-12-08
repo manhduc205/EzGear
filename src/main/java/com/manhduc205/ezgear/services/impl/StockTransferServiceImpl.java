@@ -2,6 +2,7 @@ package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.dtos.request.StockTransferRequest;
 import com.manhduc205.ezgear.dtos.responses.StockTransferResponse;
+import com.manhduc205.ezgear.enums.ROLE;
 import com.manhduc205.ezgear.enums.TransferStatus;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.*;
@@ -43,7 +44,16 @@ public class StockTransferServiceImpl implements StockTransferService {
 
         User creator = userRepo.findById(userId)
                 .orElseThrow(() -> new RequestException("Người dùng không tồn tại"));
+        // trừ sysadmin thì admin chi nhánh chỉ đc tạo phiếu chuyển từ kho thuộc chi nhánh mình
+        if (!isSysAdmin(creator)) {
+            Long userBranchId = creator.getBranchId();
 
+            Long sourceBranchId = fromWh.getBranch() != null ? fromWh.getBranch().getId() : null;
+
+            if (userBranchId == null || !userBranchId.equals(sourceBranchId)) {
+                throw new RequestException("Bạn không có quyền điều chuyển hàng đi từ kho này!");
+            }
+        }
         StockTransfer transfer = StockTransfer.builder()
                 .code("ST-" + System.currentTimeMillis())
                 .fromWarehouse(fromWh)
@@ -112,14 +122,23 @@ public class StockTransferServiceImpl implements StockTransferService {
     // XUẤT KHO (SHIP) - Trừ kho thật tại nguồn
     @Override
     @Transactional
-    public void shipTransfer(Long transferId) {
+    public void shipTransfer(Long transferId, Long userId) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RequestException("Người dùng không tồn tại"));
         StockTransfer transfer = stockTransferRepository.findById(transferId)
                 .orElseThrow(() -> new RequestException("Phiếu chuyển không tồn tại"));
 
         if (transfer.getStatus() != TransferStatus.PENDING) {
             throw new RequestException("Chỉ phiếu ở trạng thái PENDING mới được xuất kho.");
         }
+        if (!isSysAdmin(user)) {
+            Long userBranchId = user.getBranchId();
+            Long fromBranchId = transfer.getFromWarehouse().getBranch().getId();
 
+            if (userBranchId == null || !userBranchId.equals(fromBranchId)) {
+                throw new RequestException("Bạn không quản lý kho nguồn (Xuất), không thể xác nhận xuất kho!");
+            }
+        }
         Long fromWhId = transfer.getFromWarehouse().getId();
 
         // Commit Reservation: Chuyển từ Reserved -> Trừ hẳn QtyOnHand
@@ -140,14 +159,23 @@ public class StockTransferServiceImpl implements StockTransferService {
     //  NHẬP KHO Cộng kho tại đích
     @Override
     @Transactional
-    public void receiveTransfer(Long transferId) {
+    public void receiveTransfer(Long transferId, Long userId) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RequestException("Người dùng không tồn tại"));
         StockTransfer transfer = stockTransferRepository.findById(transferId)
                 .orElseThrow(() -> new RequestException("Phiếu chuyển không tồn tại"));
 
         if (transfer.getStatus() != TransferStatus.SHIPPING) {
             throw new RequestException("Phiếu chưa được xuất kho, không thể nhập.");
         }
+        if (!isSysAdmin(user)) {
+            Long userBranchId = user.getBranchId();
+            Long toBranchId = transfer.getToWarehouse().getBranch().getId();
 
+            if (userBranchId == null || !userBranchId.equals(toBranchId)) {
+                throw new RequestException("Hàng không chuyển về kho của bạn, bạn không thể nhận!");
+            }
+        }
         Long toWhId = transfer.getToWarehouse().getId();
 
         // Cộng tồn kho vào kho đích
@@ -165,8 +193,26 @@ public class StockTransferServiceImpl implements StockTransferService {
     }
 
     @Override
-    public List<StockTransferResponse> getAll() {
-        return stockTransferRepository.findAll().stream()
+    public List<StockTransferResponse> getAll(Long userId) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RequestException("User not found"));
+
+        List<StockTransfer> transfers;
+
+        // Check xem user có phải SYS_ADMIN không
+        if (isSysAdmin(user)) {
+            // SysAdmin xem tất cả
+            transfers = stockTransferRepository.findAll();
+        } else {
+            // Admin Chi nhánh Chỉ xem phiếu của Branch mình
+            Long branchId = user.getBranchId();
+            if (branchId == null) {
+                return List.of();
+            }
+            transfers = stockTransferRepository.findAllByBranchId(branchId);
+        }
+
+        return transfers.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -195,5 +241,10 @@ public class StockTransferServiceImpl implements StockTransferService {
                 .createdAt(t.getCreatedAt())
                 .items(itemResponses)
                 .build();
+    }
+    private boolean isSysAdmin(User user) {
+        if (user.getUserRoles() == null) return false;
+        return user.getUserRoles().stream()
+                .anyMatch(ur -> ur.getRole().getCode().equalsIgnoreCase(ROLE.SYS_ADMIN.name()));
     }
 }

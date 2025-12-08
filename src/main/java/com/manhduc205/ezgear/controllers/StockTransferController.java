@@ -22,27 +22,24 @@ public class StockTransferController {
     private final StockTransferService transferService;
 
     @GetMapping
-    public ResponseEntity<?> getAll() {
-        return ResponseEntity.ok(transferService.getAll());
+    public ResponseEntity<?> getAll(@AuthenticationPrincipal CustomUserDetails user) {
+        return ResponseEntity.ok(transferService.getAll(user.getId()));
     }
 
     @PostMapping
-    public ResponseEntity<StockTransfer> createTransfer(
-            @RequestBody StockTransferRequest req,
-            @AuthenticationPrincipal CustomUserDetails user
-    ) {
+    public ResponseEntity<StockTransfer> createTransfer(@RequestBody StockTransferRequest req, @AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(transferService.createTransfer(req, user.getId()));
     }
 
     @PostMapping("/{id}/ship")
-    public ResponseEntity<String> shipTransfer(@PathVariable Long id) {
-        transferService.shipTransfer(id);
+    public ResponseEntity<String> shipTransfer(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails user) {
+        transferService.shipTransfer(id, user.getId());
         return ResponseEntity.ok("Đã xuất kho chuyển đi.");
     }
 
     @PostMapping("/{id}/receive")
-    public ResponseEntity<String> receiveTransfer(@PathVariable Long id) {
-        transferService.receiveTransfer(id);
+    public ResponseEntity<String> receiveTransfer( @PathVariable Long id, @AuthenticationPrincipal CustomUserDetails user) {
+        transferService.receiveTransfer(id, user.getId());
         return ResponseEntity.ok("Đã nhập kho thành công.");
     }
 }
