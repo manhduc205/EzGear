@@ -63,6 +63,7 @@ public class AuthServiceImpl implements AuthService {
                         .stream()
                         .map(role -> "ROLE_" + role.getRole().getCode().toUpperCase())
                         .collect(Collectors.toSet()))
+                .branchId(user.getBranch() != null ? user.getBranch().getId() : null)
                 .build();
     }
 

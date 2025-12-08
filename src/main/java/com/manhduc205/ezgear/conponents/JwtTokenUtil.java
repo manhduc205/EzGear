@@ -1,4 +1,5 @@
 package com.manhduc205.ezgear.conponents;
+import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.BlacklistService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -53,13 +54,20 @@ public class JwtTokenUtil {
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
 
-        return buildToken(principal.getUsername(), roles, accessKey, getAccessTokenExpiryDate());
+        Long branchId = null;
+        if (principal instanceof CustomUserDetails) {
+            branchId = ((CustomUserDetails) principal).getBranchId();
+        }
+
+        // [MODIFIED] Truyền thêm branchId vào hàm buildToken
+        return buildToken(principal.getUsername(), roles, branchId, accessKey, getAccessTokenExpiryDate());
     }
 
     // ================= REFRESH TOKEN =================
 
     public String generateRefreshToken(String username) {
-        return buildToken(username, null, refreshKey, getRefreshTokenExpiryDate());
+        // Refresh token không cần lưu branchId (để nó chung chung) -> Truyền null
+        return buildToken(username, null, null, refreshKey, getRefreshTokenExpiryDate());
     }
 
     public boolean validateToken(String token) {
@@ -82,11 +90,15 @@ public class JwtTokenUtil {
     public String getUsernameFromAccessToken(String token) {
         return extractClaims(token, accessKey).getSubject();
     }
+    public Long getBranchIdFromToken(String token) {
+        Claims claims = extractClaims(token, accessKey);
+        return claims.get("branchId", Long.class);
+    }
 
 
     // ================= COMMON UTILS =================
 
-    private String buildToken(String subject, String roles, Key key, Date expiryDate) {
+    private String buildToken(String subject, String roles, Long branchId, Key key, Date expiryDate) {
         JwtBuilder builder = Jwts.builder()
                 .setSubject(subject)
                 .setIssuedAt(new Date())
@@ -95,6 +107,10 @@ public class JwtTokenUtil {
 
         if (roles != null) {
             builder.claim("roles", roles);
+        }
+
+        if (branchId != null) {
+            builder.claim("branchId", branchId);
         }
 
         return builder.compact();
@@ -118,7 +134,7 @@ public class JwtTokenUtil {
 
     // TTL của refreshToken (ms) → dùng cho Redis
     public long getRefreshTokenExpiryDuration() {
-        return 1000L * 60 * 24 * expiryDay;
+        return 1000L * 60 * 60 * 24 * expiryDay;
     }
     public Date getAccessTokenExpiry(String accesstoken) {
             Claims claims = Jwts.parserBuilder()

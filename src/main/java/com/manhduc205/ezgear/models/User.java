@@ -17,7 +17,7 @@ import java.util.*;
 @Table(name = "users")
 public class User extends AbstractEntity implements UserDetails {
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(unique = true, length = 32)
@@ -48,6 +48,14 @@ public class User extends AbstractEntity implements UserDetails {
                 .toList();
     }
 
+    @ManyToOne(fetch = FetchType.EAGER) // Để EAGER lấy luôn thông tin branch khi query User
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
+
+    // Helper method để lấy ID nhanh (tránh null pointer)
+    public Long getBranchId() {
+        return branch != null ? branch.getId() : null;
+    }
 
     @Override
     public String getPassword() {
