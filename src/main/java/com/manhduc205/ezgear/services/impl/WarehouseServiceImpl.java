@@ -14,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -142,45 +144,67 @@ public class WarehouseServiceImpl implements WarehouseService {
     public Warehouse findOptimalWarehouse(CustomerAddress address, List<CartItemRequest> items) {
         Integer targetProvinceId = address.getProvinceId();
 
-        // Lấy tất cả kho Active trong tỉnh
+        // Lấy và Sort kho theo khoảng cách
         List<Warehouse> warehouses = warehouseRepository.findActiveWarehousesByProvince(targetProvinceId);
+        if (warehouses.isEmpty()) throw new RequestException("Rất tiếc, chưa có kho hàng tại khu vực giao hàng này.");
 
-        if (warehouses.isEmpty()) {
-            throw new RequestException("Rất tiếc, chưa có kho hàng tại khu vực giao hàng này.");
-        }
-
-        // Sắp xếp kho theo khoảng cách (Ưu tiên cùng Quận/Huyện)
         warehouses.sort((w1, w2) -> {
             Integer d1 = w1.getBranch().getDistrictId();
             Integer d2 = w2.getBranch().getDistrictId();
             Integer targetD = address.getDistrictId();
-
             boolean match1 = d1 != null && d1.equals(targetD);
             boolean match2 = d2 != null && d2.equals(targetD);
-
-            if (match1 && !match2) return -1; // w1 gần hơn -> lên trước
+            if (match1 && !match2) return -1;
             if (!match1 && match2) return 1;
             return 0;
         });
 
-        // ƯU TIÊN 1: Tìm kho nào CÓ ĐỦ TẤT CẢ HÀNG
-        for (Warehouse wh : warehouses) {
-            boolean isFullStock = true;
-            for (CartItemRequest item : items) {
-                int available = productStockService.getAvailable(item.getSkuId(), wh.getId());
-                if (available < item.getQuantity()) {
-                    isFullStock = false;
-                    break;
-                }
-            }
-            if (isFullStock) {
-                return wh; // Chọn ngay kho này
-            }
-        }
+        // Bulk Query Ma trận tồn kho (Giữ nguyên logic Bulk Read để tối ưu hiệu năng)
+        List<Long> warehouseIds = warehouses.stream().map(Warehouse::getId).toList();
+        List<Long> skuIds = items.stream().map(CartItemRequest::getSkuId).toList();
 
-        // ƯU TIÊN 2 : Chọn kho GẦN NHẤT (đầu danh sách)
-        return warehouses.get(0);
+        // Map<WarehouseID, Map<SkuID, AvailableQty>>
+        Map<Long, Map<Long, Integer>> stockMatrix = productStockService.getStockMatrix(warehouseIds, skuIds);
+
+        int totalRequired = items.stream().mapToInt(CartItemRequest::getQuantity).sum();
+        double threshold = totalRequired * 0.6; // Ngưỡng 60%
+
+        // Tạo Map<Warehouse, Integer> lưu trữ: Kho A -> Đáp ứng được 5 cái, Kho B -> 10 cái...
+        Map<Warehouse, Integer> warehouseCapacityMap = warehouses.stream()
+                .collect(Collectors.toMap(
+                        wh -> wh,
+                        wh -> {
+                            // Lấy tồn kho của kho này từ Matrix
+                            Map<Long, Integer> whStock = stockMatrix.get(wh.getId());
+                            // Tính tổng số lượng kho này có thể cung cấp
+                            return items.stream()
+                                    .mapToInt(item -> Math.min(whStock.getOrDefault(item.getSkuId(), 0), item.getQuantity()))
+                                    .sum();
+                        }
+                ));
+
+        return warehouses.stream()
+                .max((w1, w2) -> {
+                    int qty1 = warehouseCapacityMap.get(w1);
+                    int qty2 = warehouseCapacityMap.get(w2);
+
+                    // Ưu tiên 1: Ai đáp ứng đủ 100% thì thắng tuyệt đối
+                    boolean full1 = qty1 == totalRequired;
+                    boolean full2 = qty2 == totalRequired;
+                    if (full1 != full2) return Boolean.compare(full1, full2);
+
+                    // Ưu tiên 2: Logic Đảo Hub (> 60%)
+                    // Nếu w1 > 60% mà w2 < 60% -> w1 thắng (dù w1 có thể xa hơn)
+                    boolean pass1 = qty1 > threshold;
+                    boolean pass2 = qty2 > threshold;
+                    if (pass1 != pass2) return Boolean.compare(pass1, pass2);
+
+                    // Logic Vét Cạn (Tránh kho 0 hàng) & So sánh số lượng
+                    // Nếu cả 2 đều > 60% -> Chọn ông nhiều hàng hơn.
+                    //  cả 2 đều < 60% -> Chọn ông nhiều hàng hơn (để đỡ phải chuyển kho nhiều).
+                    // bằng điểm nhau -> Stream.max sẽ giữ lại ông xuất hiện trước (tức là gần hơn).
+                    return Integer.compare(qty1, qty2);
+                })
+                .orElse(warehouses.get(0));
     }
-
-
 }

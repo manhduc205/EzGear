@@ -13,7 +13,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/warehouses")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
 public class WarehouseController {
 
     private final WarehouseService warehouseService;
