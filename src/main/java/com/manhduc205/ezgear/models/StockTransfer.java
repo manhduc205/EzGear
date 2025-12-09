@@ -30,6 +30,9 @@ public class StockTransfer extends AbstractEntity {
 
     private String note;
 
+    @Column(name = "reference_code")
+    private String referenceCode;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
@@ -37,5 +40,4 @@ public class StockTransfer extends AbstractEntity {
     @OneToMany(mappedBy = "stockTransfer", cascade = CascadeType.ALL)
     private List<StockTransferItem> items;
 
-    // Timestamps (createdAt, updatedAt) và id đã có sẵn trong AbstractEntity
 }

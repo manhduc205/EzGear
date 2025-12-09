@@ -21,7 +21,7 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PostMapping("")
     public ResponseEntity<?> createCategory(@Valid @RequestBody CategoryDTO categoryDTO,
                                                    BindingResult bindingResult) {
@@ -62,7 +62,7 @@ public class CategoryController {
                 .build());
     }
 
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateCategory(@PathVariable("id") Long id, @RequestBody CategoryDTO categoryDTO) {
         Category category = categoryService.updateCategory(id, categoryDTO);
@@ -71,7 +71,7 @@ public class CategoryController {
                 .payload(category)
                 .build());
     }
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SYS_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCategory(@PathVariable("id") Long id) {
         try {

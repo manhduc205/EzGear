@@ -42,4 +42,9 @@ public class StockTransferController {
         transferService.receiveTransfer(id, user.getId());
         return ResponseEntity.ok("Đã nhập kho thành công.");
     }
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<String> cancelTransfer(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails user) {
+        transferService.cancelTransfer(id, user.getId());
+        return ResponseEntity.ok("Đã hủy phiếu chuyển kho thành công.");
+    }
 }

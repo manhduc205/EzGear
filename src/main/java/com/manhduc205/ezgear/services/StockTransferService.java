@@ -12,4 +12,5 @@ public interface StockTransferService {
     void shipTransfer(Long transferId, Long userId);
     void receiveTransfer(Long transferId, Long userId);
     List<StockTransferResponse> getAll(Long userId);
+    void cancelTransfer(Long transferId, Long userId);
 }

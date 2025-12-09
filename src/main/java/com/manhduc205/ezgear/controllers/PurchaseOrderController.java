@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/purchase-orders")
-@PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
 public class PurchaseOrderController {
 
     private final PurchaseOrderService purchaseOrderService;

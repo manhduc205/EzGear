@@ -12,7 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/stock-transactions")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'SYSTEM_ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
 public class StockTransactionController {
 
     private final StockTransactionService stockTransactionService;
