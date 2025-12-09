@@ -346,7 +346,7 @@ public class OrderServiceImpl implements OrderService {
 
     @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @Override
-    @Transactional(readOnly = true) // Thêm cái này để đảm bảo load Lazy list items không bị lỗi
+    @Transactional(readOnly = true) //Lazy list items không bị lỗi
     public List<OrderResponse> getOrdersForPicking(Long userId) {
         User user = userRepo.findById(userId).orElseThrow(() -> new DataNotFoundException("User not found"));
 
