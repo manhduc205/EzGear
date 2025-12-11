@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 import com.manhduc205.ezgear.dtos.responses.VNPayResponse;
 import com.manhduc205.ezgear.exceptions.RequestException;
@@ -52,16 +53,19 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public VNPayResponse createPaymentVNPay(ProductPaymentRequest req) {
         Order order = orderRepository.findByCode(req.getOrderCode())
-                .orElseThrow(() -> new RequestException("Order not found: " + req.getOrderCode()));
+                .orElseThrow(() -> new RequestException(Translator.toLocale(
+                        "error.payment.order_not_found",
+                        req.getOrderCode()
+                )));
 
         // ktra nếu đã thanh toán rồi thì chặn
         if ("PAID".equalsIgnoreCase(order.getPaymentStatus())) {
-            throw new RequestException("Order already paid");
+            throw new RequestException(Translator.toLocale("error.payment.already_paid"));
         }
 
         // Lấy số tiền từ Database (Bảo mật: Không tin tưởng client gửi lên)
         if (order.getGrandTotal() == null) {
-            throw new RequestException("Order has no grand total");
+            throw new RequestException(Translator.toLocale("error.payment.missing_grand_total"));
         }
         long amountVnd = order.getGrandTotal();
         BigDecimal amountBigDecimal = BigDecimal.valueOf(amountVnd);
@@ -134,7 +138,7 @@ public class PaymentServiceImpl implements PaymentService {
             }
         } catch (Exception e) {
             log.error("Error building VNPay URL params", e);
-            throw new RequestException("Lỗi khi tạo URL thanh toán");
+            throw new RequestException(Translator.toLocale("error.payment.build_vnpay_url_failed"));
         }
 
         String queryUrl = query.toString();
@@ -216,7 +220,10 @@ public class PaymentServiceImpl implements PaymentService {
 
         // Tìm Payment trong DB
         Payment payment = paymentRepository.findByVnpTxnRef(txnRef)
-                .orElseThrow(() -> new RequestException("Payment transaction not found: " + txnRef));
+                .orElseThrow(() -> new RequestException(Translator.toLocale(
+                        "error.payment.transaction_not_found",
+                        txnRef
+                )));
 
         Order order = payment.getOrder();
 
@@ -320,7 +327,10 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public void createCodPayment(ProductPaymentRequest req) {
         Order order = orderRepository.findByCode(req.getOrderCode())
-                .orElseThrow(() -> new RequestException("Order not found: " + req.getOrderCode()));
+                .orElseThrow(() -> new RequestException(Translator.toLocale(
+                        "error.payment.order_not_found",
+                        req.getOrderCode()
+                )));
 
         Payment payment = Payment.builder()
                 .order(order)

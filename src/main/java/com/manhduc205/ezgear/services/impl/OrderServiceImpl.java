@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 import com.manhduc205.ezgear.dtos.request.order.CreateOrderRequest;
@@ -56,18 +57,18 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(rollbackFor = Exception.class)
     public OrderPlacementResponse createOrder(CreateOrderRequest req, Long userId, String paymentMethod, HttpServletRequest httpRequest) {
         if (req.getCartItems() == null || req.getCartItems().isEmpty()) {
-            throw new RequestException("Giỏ hàng rỗng, không thể tạo đơn hàng.");
+            throw new RequestException(Translator.toLocale("error.order.empty_cart"));
         }
         if (req.getAddressId() == null) {
-            throw new RequestException("Vui lòng chọn địa chỉ nhận hàng.");
+            throw new RequestException(Translator.toLocale("error.order.shipping_address_required"));
         }
         Integer serviceId = req.getShippingServiceId();
         if (serviceId == null) {
-            throw new RequestException("Vui lòng chọn gói vận chuyển (serviceId is missing).");
+            throw new RequestException(Translator.toLocale("error.order.shipping_service_required"));
         }
         // Lấy thông tin Địa chỉ nhận hàng (Để biết Tỉnh nào -> Tìm kho)
         CustomerAddress address = addressRepo.findByIdAndUserId(req.getAddressId(), userId)
-                .orElseThrow(() -> new RequestException("Địa chỉ giao hàng không hợp lệ."));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.order.invalid_shipping_address")));
 
         //  CHECK TỒN KHO THEO KHU VỰC (location context)
         // Chỉ cần Tổng tồn kho trong Tỉnh > 0 là cho phép đặt.
@@ -75,7 +76,11 @@ public class OrderServiceImpl implements OrderService {
             int availableInProvince = stockService.getAvailableInProvince(ci.getSkuId(), address.getProvinceId());
             if (availableInProvince < ci.getQuantity()) {
                 ProductSKU sku = skuRepo.findById(ci.getSkuId()).orElseThrow();
-                throw new RequestException("Sản phẩm " + sku.getName() + " không đủ hàng tại khu vực của bạn (Còn: " + availableInProvince + ").");
+                throw new RequestException(Translator.toLocale(
+                        "error.product.not_enough_stock_in_area",
+                        sku.getName(),
+                        availableInProvince
+                ));
             }
         }
 
@@ -92,7 +97,10 @@ public class OrderServiceImpl implements OrderService {
 
         for (CartItemRequest ci : req.getCartItems()) {
             ProductSKU sku = skuRepo.findById(ci.getSkuId())
-                    .orElseThrow(() -> new RequestException("SKU ID " + ci.getSkuId() + " không tồn tại."));
+                    .orElseThrow(() -> new RequestException(Translator.toLocale(
+                            "error.sku.not_found_by_id",
+                            ci.getSkuId()
+                    )));
 
             long unitPrice = sku.getPrice();
             long lineTotal = unitPrice * ci.getQuantity();
@@ -138,7 +146,7 @@ public class OrderServiceImpl implements OrderService {
             }
         } catch (Exception e) {
             log.error("Lỗi tính phí ship: {}", e.getMessage());
-            throw new RequestException("Không thể tính phí vận chuyển lúc này.");
+            throw new RequestException(Translator.toLocale("error.order.shipping_fee_unavailable"));
         }
 
         // 7. Tính Voucher
@@ -219,7 +227,7 @@ public class OrderServiceImpl implements OrderService {
                 }
             }
         } catch (Exception e) {
-            throw new RequestException("Rất tiếc, một số sản phẩm vừa hết hàng trong quá trình xử lý.");
+            throw new RequestException(Translator.toLocale("error.order.items_out_of_stock_during_processing"));
         }
 
         if (PaymentMethod.COD.toString().equalsIgnoreCase(paymentMethod)) {
@@ -239,7 +247,7 @@ public class OrderServiceImpl implements OrderService {
                     .orderCode(savedOrder.getCode())
                     .status(savedOrder.getStatus())
                     .paymentUrl(null)
-                    .message("Đặt hàng COD thành công")
+                    .message(Translator.toLocale("success.order.cod_checkout"))
                     .build();
 
         } else {
@@ -258,7 +266,7 @@ public class OrderServiceImpl implements OrderService {
                     .orderCode(savedOrder.getCode())
                     .status(savedOrder.getStatus())
                     .paymentUrl(vnpRes.getPaymentUrl())
-                    .message("Vui lòng thanh toán qua VNPay")
+                    .message(Translator.toLocale("instruction.order.pay_with_vnpay"))
                     .build();
         }
     }
@@ -278,10 +286,10 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse getOrderDetail(Long userId, String orderCode) {
         //check đơn hàng
         Order order = orderRepo.findByCode(orderCode)
-                .orElseThrow(() -> new RequestException("Đơn hàng không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.order.not_found_by_code")));
 
         if (!order.getUserId().equals(userId)) {
-            throw new AccessDeniedException("Bạn không có quyền xem đơn hàng này.");
+            throw new AccessDeniedException(Translator.toLocale("error.order.access_denied"));
         }
 
         List<OrderResponse.OrderItemResponse> itemResponses = order.getItems().stream()
@@ -348,7 +356,9 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true) //Lazy list items không bị lỗi
     public List<OrderResponse> getOrdersForPicking(Long userId) {
-        User user = userRepo.findById(userId).orElseThrow(() -> new DataNotFoundException("User not found"));
+        User user = userRepo.findById(userId).orElseThrow(() -> new DataNotFoundException(
+                Translator.toLocale("error.user.not_found")
+        ));
 
         boolean isSysAdmin = user.getUserRoles() != null && user.getUserRoles().stream()
                 .anyMatch(ur -> ur.getRole().getCode().equalsIgnoreCase("SYS_ADMIN"));

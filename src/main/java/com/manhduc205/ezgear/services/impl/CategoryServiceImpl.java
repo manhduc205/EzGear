@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.CategoryDTO;
 import com.manhduc205.ezgear.models.Category;
 import com.manhduc205.ezgear.repositories.CategoryRepository;
@@ -34,7 +35,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public Category getCategoryById(Long categoryId) {
         return categoryRepository.findById(categoryId).
-                orElseThrow(() -> new RuntimeException());
+                orElseThrow(() -> new RuntimeException(Translator.toLocale("error.category.not_found")));
     }
 
     @Override
@@ -46,6 +47,9 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public void deleteCategory(Long categoryId) {
+        if (!categoryRepository.existsById(categoryId)) {
+            throw new RuntimeException(Translator.toLocale("error.category.not_found"));
+        }
         categoryRepository.deleteById(categoryId);
     }
 }

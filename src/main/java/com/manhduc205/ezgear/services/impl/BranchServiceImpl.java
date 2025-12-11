@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.BranchDTO;
 import com.manhduc205.ezgear.models.Branch;
 import com.manhduc205.ezgear.repositories.BranchRepository;
@@ -64,7 +65,7 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public Branch updateBranch(Long id, @Valid BranchDTO dto) {
         Branch branch = branchRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+                .orElseThrow(() -> new RuntimeException(Translator.toLocale("error.branch.not_found")));
 
         if (dto.getCode() != null) branch.setCode(dto.getCode());
         if (dto.getName() != null) branch.setName(dto.getName());

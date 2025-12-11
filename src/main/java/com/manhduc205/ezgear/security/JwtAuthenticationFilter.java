@@ -1,6 +1,6 @@
 package com.manhduc205.ezgear.security;
 
-import com.manhduc205.ezgear.conponents.JwtTokenUtil;
+import com.manhduc205.ezgear.components.JwtTokenUtil;
 import com.manhduc205.ezgear.services.CustomUserDetailsService;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;

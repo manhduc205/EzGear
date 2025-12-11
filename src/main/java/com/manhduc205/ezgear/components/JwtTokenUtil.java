@@ -1,4 +1,4 @@
-package com.manhduc205.ezgear.conponents;
+package com.manhduc205.ezgear.components;
 import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.BlacklistService;
 import io.jsonwebtoken.*;
@@ -14,7 +14,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Date;
 import java.util.stream.Collectors;

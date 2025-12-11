@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.StockTransactionReportDTO;
 import com.manhduc205.ezgear.models.*;
 import com.manhduc205.ezgear.repositories.*;
@@ -67,19 +68,23 @@ public class StockTransactionServiceImpl implements StockTransactionService {
 
     private String getTransactionType(StockTransaction tx) {
         if (tx.getRefType() == null) {
-            return tx.getDirection() == StockTransaction.Direction.IN ? "Nhập kho" : "Xuất kho";
+            return tx.getDirection() == StockTransaction.Direction.IN
+                    ? Translator.toLocale("stock.transaction.type.import")
+                    : Translator.toLocale("stock.transaction.type.export");
         }
         switch (tx.getRefType().toUpperCase()) {
             case "PO":
-                return "Nhập kho";
+                return Translator.toLocale("stock.transaction.type.import");
             case "SO":
-                return "Xuất kho";
+                return Translator.toLocale("stock.transaction.type.export");
             case "ADJUST":
-                return "Điều chỉnh";
+                return Translator.toLocale("stock.transaction.type.adjust");
             case "TRANSFER":
-                return "Chuyển kho";
+                return Translator.toLocale("stock.transaction.type.transfer");
             default:
-                return tx.getDirection() == StockTransaction.Direction.IN ? "Nhập kho" : "Xuất kho";
+                return tx.getDirection() == StockTransaction.Direction.IN
+                        ? Translator.toLocale("stock.transaction.type.import")
+                        : Translator.toLocale("stock.transaction.type.export");
         }
     }
 }

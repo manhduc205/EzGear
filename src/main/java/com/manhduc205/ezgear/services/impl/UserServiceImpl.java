@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.UserDTO;
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.models.Role;
@@ -29,16 +30,16 @@ public class UserServiceImpl implements UserService {
 
         String phoneNumber = userDTO.getPhoneNumber();
         if(userRepository.existsByPhone(phoneNumber)) {
-            throw new DataIntegrityViolationException("Phone number already exists");
+            throw new DataIntegrityViolationException(Translator.toLocale("error.user.phone_exists"));
         }
         if(userRepository.findByEmail(userDTO.getEmail()).isPresent()) {
-            throw new DataIntegrityViolationException("Email already exists");
+            throw new DataIntegrityViolationException(Translator.toLocale("error.user.email_exists"));
         }
 
         Role role = roleRepository.findById(userDTO.getRoleId())
-                .orElseThrow(() -> new DataIntegrityViolationException("Role Not Found"));
+                .orElseThrow(() -> new DataIntegrityViolationException(Translator.toLocale("error.role.not_found")));
         if (role.getCode().equalsIgnoreCase("SYS_ADMIN")) {
-            throw new BadCredentialsException("You cannot self-register as system-admin");
+            throw new BadCredentialsException(Translator.toLocale("error.user.cannot_create_sys_admin"));
         }
         boolean staffFlag = false;
         if (role.getCode().equalsIgnoreCase("SYS_ADMIN")  || role.getCode().equalsIgnoreCase("ADMIN")) {
@@ -78,7 +79,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getUserById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new DataNotFoundException("Không tìm thấy người dùng với ID: " + id));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.user.not_found_by_id", id)));
     }
     @Override
     public boolean isSysAdmin(User user) {

@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.responses.StockResponse;
@@ -46,7 +47,10 @@ public class ProductStockServiceImpl implements ProductStockService {
     private Long getWarehouseIdByBranch(Long branchId) {
         return warehouseRepository.findFirstByBranchIdAndIsActiveTrue(branchId)
                 .map(Warehouse::getId)
-                .orElseThrow(() -> new RequestException("Không tìm thấy kho hàng cho chi nhánh " + branchId));
+                .orElseThrow(() -> new RequestException(Translator.toLocale(
+                        "error.stock.warehouse_not_found_by_branch",
+                        branchId
+                )));
     }
     //ProductStockDTO + delta (số lượng cộng/trừ).
     @Override
@@ -54,9 +58,9 @@ public class ProductStockServiceImpl implements ProductStockService {
         ProductStock productStock = productStockRepository.findByProductSkuIdAndWarehouseId(productStockDTO.getSkuId(),productStockDTO.getWarehouseId())
                 .orElseGet(() ->{
                     ProductSKU sku = productSkuRepository.findById(productStockDTO.getSkuId())
-                            .orElseThrow(() -> new RequestException("SKU not found"));
+                            .orElseThrow(() -> new RequestException(Translator.toLocale("error.sku.not_found")));
                     Warehouse warehouse = warehouseRepository.findById(productStockDTO.getWarehouseId())
-                            .orElseThrow(() -> new RequestException("Warehouse not found"));
+                            .orElseThrow(() -> new RequestException(Translator.toLocale("error.warehouse.not_found")));
                     return ProductStock.builder()
                             .productSku(sku)
                             .warehouse(warehouse)
@@ -121,7 +125,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     @Transactional
     public void commitReservation(String orderCode) {
         var order = orderRepository.findByCode(orderCode)
-                .orElseThrow(() -> new RequestException("Order not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.order.not_found_by_code")));
 
         if (order.getItems() == null || order.getItems().isEmpty()) return;
 
@@ -155,7 +159,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     @Override
     @Transactional
     public void releaseReservation(String orderCode) {
-        var order = orderRepository.findByCode(orderCode).orElseThrow(() -> new RequestException("Order not found"));
+        var order = orderRepository.findByCode(orderCode).orElseThrow(() -> new RequestException(Translator.toLocale("error.order.not_found_by_code")));
         if (order.getItems() == null) return;
         Long warehouseId = getWarehouseIdByBranch(order.getBranchId());
 
@@ -172,11 +176,11 @@ public class ProductStockServiceImpl implements ProductStockService {
     @Transactional
     public void reduceStockDirect(Long skuId, Long warehouseId, int qty) {
         //  Nhận trực tiếp WarehouseId
-        if (warehouseId == null) throw new RequestException("Kho không hợp lệ");
+        if (warehouseId == null) throw new RequestException(Translator.toLocale("error.warehouse.invalid"));
 
         int updated = productStockRepository.reduceDirect(skuId, warehouseId, qty);
         if (updated == 0) {
-            throw new RequestException("Sản phẩm không đủ hàng để xuất kho.");
+            throw new RequestException(Translator.toLocale("error.stock.not_enough_to_export"));
         }
     }
 
@@ -198,7 +202,7 @@ public class ProductStockServiceImpl implements ProductStockService {
         int updated = productStockRepository.releaseReserved(skuId, warehouseId, qty);
 
         if (updated == 0) {
-            throw new RequestException("Lỗi kho: Không thể nhả giữ chỗ (Số lượng giữ chỗ thực tế ít hơn yêu cầu).");
+            throw new RequestException(Translator.toLocale("error.stock.release_reservation_failed"));
         }
     }
 
@@ -214,7 +218,10 @@ public class ProductStockServiceImpl implements ProductStockService {
             int direct = productStockRepository.reduceDirect(skuId, warehouseId, qty);
 
             if (direct == 0) {
-                throw new RequestException("Lỗi kho: Không đủ hàng để xuất chuyển kho (SKU: " + skuId + ")");
+                throw new RequestException(Translator.toLocale(
+                        "error.stock.not_enough_for_transfer",
+                        skuId
+                ));
             }
         }
     }
@@ -222,7 +229,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     @Override
     @Transactional
     public void addStock(Long skuId, Long warehouseId, int qty) {
-        if (qty <= 0) throw new RequestException("Số lượng nhập phải lớn hơn 0");
+        if (qty <= 0) throw new RequestException(Translator.toLocale("error.stock.import_qty_invalid"));
 
         // Thử cộng dồn vào record có sẵn
         int updated = productStockRepository.increaseStock(skuId, warehouseId, qty);
@@ -230,10 +237,16 @@ public class ProductStockServiceImpl implements ProductStockService {
         // Nếu chưa có record nào -> tạo mới
         if (updated == 0) {
             ProductSKU sku = productSkuRepository.findById(skuId)
-                    .orElseThrow(() -> new RequestException("SKU không tồn tại: " + skuId));
+                    .orElseThrow(() -> new RequestException(Translator.toLocale(
+                            "error.sku.not_found_by_id",
+                            skuId
+                    )));
 
             Warehouse wh = warehouseRepository.findById(warehouseId)
-                    .orElseThrow(() -> new RequestException("Kho không tồn tại: " + warehouseId));
+                    .orElseThrow(() -> new RequestException(Translator.toLocale(
+                            "error.warehouse.not_found_by_id",
+                            warehouseId
+                    )));
 
             ProductStock newStock = ProductStock.builder()
                     .productSku(sku)
@@ -283,7 +296,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     @Override
     @Transactional
     public void reserveStock(String orderCode, Long skuId, Long warehouseId, int qty) {
-        if (warehouseId == null) throw new RequestException("Kho nguồn không hợp lệ");
+        if (warehouseId == null) throw new RequestException(Translator.toLocale("error.warehouse.invalid"));
 
         // Kiểm tra tồn kho khả dụng tại đúng kho đó
         int available = getAvailable(skuId, warehouseId);
@@ -292,8 +305,12 @@ public class ProductStockServiceImpl implements ProductStockService {
             ProductSKU sku = productSkuRepository.findById(skuId).orElseThrow();
             Warehouse wh = warehouseRepository.findById(warehouseId).orElseThrow();
             throw new RequestException(
-                    String.format("Kho '%s' không đủ hàng. Cần: %d, Có sẵn: %d",
-                            wh.getName(), qty, available)
+                    Translator.toLocale(
+                            "error.stock.insufficient_at_warehouse",
+                            wh.getName(),
+                            qty,
+                            available
+                    )
             );
         }
 
@@ -353,7 +370,7 @@ public class ProductStockServiceImpl implements ProductStockService {
         // 3. Check cuối cùng
         if (remainingNeeded > 0) {
             // Rollback nếu không đủ hàng
-            throw new RequestException("Sản phẩm vừa hết hàng trong quá trình xử lý phân bổ.");
+            throw new RequestException(Translator.toLocale("error.stock.run_out_during_allocation"));
         }
 
         return allocationResult;

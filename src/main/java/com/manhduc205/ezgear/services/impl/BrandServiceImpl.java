@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.BrandDTO;
 import com.manhduc205.ezgear.models.Brand;
 import com.manhduc205.ezgear.repositories.BrandRepository;
@@ -39,7 +40,7 @@ public class BrandServiceImpl implements BrandService {
     @Override
     public Brand getBrandById(Long categoryId) {
         return brandRepository.findById(categoryId).
-                orElseThrow(() -> new RuntimeException());
+                orElseThrow(() -> new RuntimeException(Translator.toLocale("error.brand.not_found")));
     }
 
 
@@ -53,6 +54,9 @@ public class BrandServiceImpl implements BrandService {
 
     @Override
     public void deleteBrandById(Long brandId) {
+        if (!brandRepository.existsById(brandId)) {
+            throw new RuntimeException(Translator.toLocale("error.brand.not_found"));
+        }
         brandRepository.deleteById(brandId);
     }
 }

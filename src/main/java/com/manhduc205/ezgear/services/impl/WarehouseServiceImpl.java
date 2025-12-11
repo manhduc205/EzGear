@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.WarehouseDTO;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.exceptions.RequestException;
@@ -28,7 +29,7 @@ public class WarehouseServiceImpl implements WarehouseService {
     @Override
     public Warehouse createWarehouse(WarehouseDTO dto) {
         Branch branch = branchRepository.findById(dto.getBranchId())
-                .orElseThrow(() -> new RuntimeException("Branch not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.branch.not_found")));
 
         Warehouse warehouse = Warehouse.builder()
                 .branch(branch)
@@ -61,11 +62,11 @@ public class WarehouseServiceImpl implements WarehouseService {
     @Override
     public Warehouse updateWarehouse(Long id, WarehouseDTO dto) {
         Warehouse warehouse = warehouseRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.warehouse.not_found")));
 
         if (dto.getBranchId() != null) {
             Branch branch = branchRepository.findById(dto.getBranchId())
-                    .orElseThrow(() -> new RuntimeException("Branch not found"));
+                    .orElseThrow(() -> new RequestException(Translator.toLocale("error.branch.not_found")));
             warehouse.setBranch(branch);
         }
 
@@ -96,14 +97,14 @@ public class WarehouseServiceImpl implements WarehouseService {
     @Override
     public Warehouse resolveWarehouseForAddress(CustomerAddress address) {
         if (address == null) {
-            throw new RequestException("Địa chỉ giao hàng không hợp lệ (null).");
+            throw new RequestException(Translator.toLocale("error.checkout.invalid_shipping_address"));
         }
 
         Integer provinceId = address.getProvinceId();
         Integer districtId = address.getDistrictId();
 
         if (provinceId == null || districtId == null) {
-            throw new RequestException("Địa chỉ giao hàng thiếu thông tin tỉnh / quận.");
+            throw new RequestException(Translator.toLocale("error.checkout.missing_address_region"));
         }
 
         // chi nhánh cùng quận
@@ -114,7 +115,10 @@ public class WarehouseServiceImpl implements WarehouseService {
                 // Fallback chi nhánh cùng tỉnh
                 branchRepository.findFirstByProvinceIdAndIsActiveTrue(provinceId)
                         .orElseThrow(() -> new RequestException(
-                                "Không tìm thấy chi nhánh phù hợp cho tỉnh " + provinceId
+                                Translator.toLocale(
+                                        "error.warehouse.no_branch_for_province",
+                                        provinceId
+                                )
                         ))
         );
 
@@ -122,7 +126,7 @@ public class WarehouseServiceImpl implements WarehouseService {
         Warehouse warehouse = warehouseRepository
                 .findFirstByBranchIdAndIsActiveTrue(branch.getId())
                 .orElseThrow(() -> new RequestException(
-                        "Không có kho hoạt động thuộc chi nhánh: " + branch.getName()
+                        Translator.toLocale("error.warehouse.no_active_for_branch", branch.getName())
                 ));
 
         return warehouse;
@@ -146,7 +150,7 @@ public class WarehouseServiceImpl implements WarehouseService {
 
         // Lấy và Sort kho theo khoảng cách
         List<Warehouse> warehouses = warehouseRepository.findActiveWarehousesByProvince(targetProvinceId);
-        if (warehouses.isEmpty()) throw new RequestException("Rất tiếc, chưa có kho hàng tại khu vực giao hàng này.");
+        if (warehouses.isEmpty()) throw new RequestException(Translator.toLocale("error.warehouse.none_in_area"));
 
         warehouses.sort((w1, w2) -> {
             Integer d1 = w1.getBranch().getDistrictId();

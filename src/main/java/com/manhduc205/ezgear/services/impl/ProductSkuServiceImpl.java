@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.ProductSkuDTO;
 import com.manhduc205.ezgear.dtos.request.ProductSkuSearchRequest;
 import com.manhduc205.ezgear.models.Product;
@@ -29,11 +30,13 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     @Override
     public ProductSKU createProductSku(ProductSkuDTO productSkuDTO) {
         Product product = productRepository.findById(productSkuDTO.getProductId())
-                .orElseThrow(() -> new EntityNotFoundException("Product not found"));
+                .orElseThrow(() -> new EntityNotFoundException(
+                        Translator.toLocale("error.product.not_found_by_id", productSkuDTO.getProductId())
+                ));
 
         // kiểm tra sku có bị trùng
         if(productSkuRepository.existsBySku(productSkuDTO.getSku())){
-            throw new EntityExistsException("Product sku already exists");
+            throw new EntityExistsException(Translator.toLocale("error.product_sku.duplicate_sku"));
         }
 
         ProductSKU productSKU = ProductSKU.builder()
@@ -54,11 +57,15 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     @Override
     public ProductSKU updateProductSku(Long id, ProductSkuDTO productSkuDTO) {
         ProductSKU productSKU = productSkuRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("ProductSKU not found"));
+                .orElseThrow(() -> new EntityNotFoundException(
+                        Translator.toLocale("error.product_sku.not_found_by_id", id)
+                ));
 
         if(productSkuDTO.getProductId() != null && productSkuDTO.getProductId().equals(productSKU.getProduct().getId())) {
             Product product = productRepository.findById(productSkuDTO.getProductId())
-                    .orElseThrow(() -> new EntityNotFoundException("Product not found"));
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            Translator.toLocale("error.product.not_found_by_id", productSkuDTO.getProductId())
+                    ));
             productSKU.setProduct(product);
         }
 
@@ -77,7 +84,9 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     @Override
     public void deleteProductSku(Long id) {
         ProductSKU sku = productSkuRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("ProductSKU not found"));
+                .orElseThrow(() -> new EntityNotFoundException(
+                        Translator.toLocale("error.product_sku.not_found_by_id", id)
+                ));
         sku.setIsActive(false);  // soft delete tránh lỗi nếu SKU từng xh trong đơn hàng
         productSkuRepository.save(sku);
     }
@@ -149,7 +158,9 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     @Override
     public ProductSKU getById(Long id) {
         return productSkuRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("ProductSKU not found"));
+                .orElseThrow(() -> new EntityNotFoundException(
+                        Translator.toLocale("error.product_sku.not_found_by_id", id)
+                ));
     }
 
 }

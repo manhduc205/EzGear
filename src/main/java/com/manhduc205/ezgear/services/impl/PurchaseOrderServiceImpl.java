@@ -1,9 +1,11 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.PurchaseOrderDTO;
 import com.manhduc205.ezgear.dtos.PurchaseOrderItemDTO;
 import com.manhduc205.ezgear.dtos.responses.PurchaseOrderItemResponse;
 import com.manhduc205.ezgear.dtos.responses.PurchaseOrderResponse;
+import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.mapper.PurchaseOrderMapper;
 import com.manhduc205.ezgear.models.*;
 import com.manhduc205.ezgear.repositories.*;
@@ -35,7 +37,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     @Override
     public PurchaseOrderDTO createOrder(PurchaseOrderDTO purchaseOrderDTO) {
         Warehouse warehouse = warehouseRepository.findById(purchaseOrderDTO.getWarehouseId())
-                .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.warehouse.not_found")));
         // Sử dụng hàm generatePOCode()
         String code = purchaseOrderDTO.getCode() != null ? purchaseOrderDTO.getCode() : generatePOCode();
         PurchaseOrder purchaseOrder = PurchaseOrder.builder()
@@ -52,7 +54,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         List<PurchaseOrderItem> items = purchaseOrderDTO.getItems()
                 .stream().map(i -> {
                     ProductSKU productSKU = productSkuRepository.findById(i.getSkuId())
-                            .orElseThrow(() -> new RuntimeException("SKU not found"));
+                            .orElseThrow(() -> new RequestException(Translator.toLocale("error.sku.not_found")));
                     return PurchaseOrderItem.builder()
                             .purchaseOrder(purchaseOrder)
                             .productSKU(productSKU)
@@ -68,7 +70,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     @Override
     public PurchaseOrderDTO confirmOrder(Long id) {
         PurchaseOrder  po = purchaseOrderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Purchase order not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.purchase_order.not_found")));
 
         po.setStatus("CONFIRMED");
         purchaseOrderRepository.save(po);
@@ -86,10 +88,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         Long userId = user.getId();
 
         PurchaseOrder po = purchaseOrderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Purchase order not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.purchase_order.not_found")));
 
         if (!"CONFIRMED".equals(po.getStatus())) {
-            throw new RuntimeException("Purchase order must be CONFIRMED before receiving");
+            throw new RequestException(Translator.toLocale("error.purchase_order.must_confirmed_before_receive"));
         }
         po.setStatus("RECEIVED");
 
@@ -147,10 +149,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderDTO cancelOrder(Long id) {
 
         PurchaseOrder po = purchaseOrderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Purchase order not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.purchase_order.not_found")));
 
         if ("RECEIVED".equals(po.getStatus())) {
-            throw new RuntimeException("Cannot cancel an order that has already been received");
+            throw new RequestException(Translator.toLocale("error.purchase_order.cannot_cancel_received"));
         }
         po.setStatus("CANCELLED");
         purchaseOrderRepository.save(po);
@@ -202,7 +204,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     @Override
     public PurchaseOrderDTO getById(Long id) {
         PurchaseOrder po = purchaseOrderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Purchase order not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.purchase_order.not_found")));
         return purchaseOrderMapper.toDTO(po);
     }
 
@@ -211,10 +213,10 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
     public PurchaseOrderDTO updateOrder(Long id, PurchaseOrderDTO dto) {
 
         PurchaseOrder po = purchaseOrderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Purchase order not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.purchase_order.not_found")));
 
         if (!"DRAFT".equals(po.getStatus())) {
-            throw new RuntimeException("Only DRAFT purchase orders can be updated");
+            throw new RequestException(Translator.toLocale("error.purchase_order.only_draft_updatable"));
         }
 
         // ===== Update basic fields =====
@@ -224,7 +226,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         // Update warehouse
         if (dto.getWarehouseId() != null) {
             Warehouse wh = warehouseRepository.findById(dto.getWarehouseId())
-                    .orElseThrow(() -> new RuntimeException("Warehouse not found"));
+                    .orElseThrow(() -> new RequestException(Translator.toLocale("error.warehouse.not_found")));
             po.setWarehouse(wh);
         }
 
@@ -244,7 +246,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
             } else {
                 // thêm item mới
                 ProductSKU sku = productSkuRepository.findById(itemDTO.getSkuId())
-                        .orElseThrow(() -> new RuntimeException("SKU not found"));
+                        .orElseThrow(() -> new RequestException(Translator.toLocale("error.sku.not_found")));
 
                 PurchaseOrderItem newItem = PurchaseOrderItem.builder()
                         .purchaseOrder(po)

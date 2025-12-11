@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.request.InvoiceSearchRequest;
 import com.manhduc205.ezgear.dtos.responses.invoice.InvoiceResponse;
 import com.manhduc205.ezgear.enums.InvoiceStatus;
@@ -42,7 +43,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     // Tạo hóa đơn từ đơn hàng (Tự động xác định trạng thái PAID/PENDING)
     public Invoice createInvoice(Long orderId) {
 
-        Order order = orderRepository.findById(orderId).orElseThrow(() -> new RuntimeException("Order not found"));
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException(Translator.toLocale("error.order.not_found")));
         User customer = null;
         if (order.getUserId() != null) {
             customer = userRepository.findById(order.getUserId()).orElse(null);
@@ -104,19 +106,22 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Override
     public InvoiceResponse getInvoiceById(Long id) {
-        Invoice invoice = invoiceRepository.findById(id).orElseThrow(() -> new RuntimeException("Invoice not found"));
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException(Translator.toLocale("error.invoice.not_found")));
         return mapToResponse(invoice);
     }
 
     @Override
     public InvoiceResponse getInvoiceByOrderId(Long orderId) {
-        Invoice invoice = invoiceRepository.findByOrderId(orderId).orElseThrow(() -> new RuntimeException("Chưa có hóa đơn nào cho đơn hàng này."));
+        Invoice invoice = invoiceRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException(Translator.toLocale("error.invoice.not_exists_for_order")));
         return mapToResponse(invoice);
     }
     // Cập nhật trạng thái thanh toán (Dùng cho Webhook COD)
     @Override
     public void markInvoiceAsPaid(Long invoiceId) {
-        Invoice invoice = invoiceRepository.findById(invoiceId).orElseThrow(() -> new RuntimeException("Invoice not found"));
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException(Translator.toLocale("error.invoice.not_found")));
         if (invoice.getStatus() == InvoiceStatus.PENDING) {
             invoice.setStatus(InvoiceStatus.PAID);
             invoice.setPaidAmount(invoice.getGrandTotal());
@@ -168,7 +173,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 return code;
             }
         }
-        throw new RequestException("Hệ thống đang bận, không thể sinh mã hóa đơn. Vui lòng thử lại.");
+        throw new RequestException(Translator.toLocale("error.invoice.generate_code_failed"));
     }
 
     private InvoiceResponse mapToResponse(Invoice inv) {
@@ -188,7 +193,9 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orderId(inv.getOrder().getId())
                 .orderCode(inv.getOrder().getCode())
                 // Thông tin khách lấy từ Order (vì OrderSnapshot chính xác hơn User hiện tại)
-                .customerName(inv.getOrder().getShippingAddress() != null ? inv.getOrder().getShippingAddress().getReceiverName() : "Khách lẻ")
+                .customerName(inv.getOrder().getShippingAddress() != null
+                        ? inv.getOrder().getShippingAddress().getReceiverName()
+                        : Translator.toLocale("label.customer.walk_in"))
                 .subtotal(inv.getSubtotal())
                 .discountTotal(inv.getDiscountTotal())
                 .grandTotal(inv.getGrandTotal())

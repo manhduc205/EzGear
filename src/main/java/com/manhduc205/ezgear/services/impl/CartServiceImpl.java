@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.CartCheckoutRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
@@ -47,7 +48,7 @@ public class CartServiceImpl implements CartService {
     public CartCheckoutPreviewResponse previewCheckout(CartCheckoutRequest req, Long userId) {
 
         if (req.getCartItems() == null || req.getCartItems().isEmpty()) {
-            throw new RequestException("Giỏ hàng trống, không thể thanh toán.");
+            throw new RequestException(Translator.toLocale("error.cart.empty"));
         }
 
         // 1. Tìm kho dựa trên Tỉnh/Thành phố (Location Context)
@@ -63,11 +64,16 @@ public class CartServiceImpl implements CartService {
             // Check tồn kho tại kho khu vực này
             int available = productStockService.getAvailable(ci.getSkuId(), warehouseId);
             if (available < ci.getQuantity()) {
-                throw new RequestException("Sản phẩm SKU " + ci.getSkuId() + " tạm hết hàng tại khu vực bạn chọn.");
+                throw new RequestException(Translator.toLocale(
+                        "error.cart.sku_out_of_stock_in_area",
+                        ci.getSkuId()
+                ));
             }
 
             ProductSKU sku = productSkuRepository.findById(ci.getSkuId())
-                    .orElseThrow(() -> new RequestException("SKU " + ci.getSkuId() + " không tồn tại."));
+                    .orElseThrow(() -> new RequestException(
+                            Translator.toLocale("error.cart.sku_not_found", ci.getSkuId())
+                    ));
 
             Long unitPrice = sku.getPrice() != null ? sku.getPrice() : 0L;
             long lineTotal = unitPrice * ci.getQuantity();
@@ -196,14 +202,14 @@ public class CartServiceImpl implements CartService {
         int currentProvinceId = (provinceId != null) ? provinceId : 201;
 
         Cart cart = cartRepository.findByUserId(userId)
-                .orElseThrow(() -> new RequestException("Giỏ hàng rỗng"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.cart.empty")));
 
         validateStockByProvince(skuId, qty, currentProvinceId);
 
         CartItem item = cart.getItems().stream()
                 .filter(i -> i.getSkuId().equals(skuId))
                 .findFirst()
-                .orElseThrow(() -> new RequestException("Sản phẩm không có trong giỏ"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.cart.item_not_found")));
 
         item.setQuantity(qty);
         cart.setUpdatedAt(LocalDateTime.now());
@@ -216,11 +222,11 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public CartResponse removeItem(Long userId, Long skuId, Integer provinceId) {
         Cart cart = cartRepository.findByUserId(userId)
-                .orElseThrow(() -> new RequestException("Giỏ hàng rỗng"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.cart.empty")));
 
         boolean removed = cart.getItems().removeIf(i -> i.getSkuId().equals(skuId));
         if (!removed) {
-            throw new RequestException("Không tìm thấy sản phẩm cần xoá.");
+            throw new RequestException(Translator.toLocale("error.cart.item_not_found"));
         }
 
         cart.setUpdatedAt(LocalDateTime.now());
@@ -236,7 +242,7 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public void clearCart(Long userId) {
         Cart cart = cartRepository.findByUserId(userId)
-                .orElseThrow(() -> new RequestException("Giỏ hàng rỗng"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.cart.empty")));
         cart.getItems().clear();
         cart.setUpdatedAt(LocalDateTime.now());
         cartRepository.save(cart);
@@ -262,7 +268,7 @@ public class CartServiceImpl implements CartService {
         List<Warehouse> warehouses = warehouseRepository.findActiveWarehousesByProvince(provinceId);
 
         if (warehouses.isEmpty()) {
-            throw new RequestException("Hiện tại chưa có chi nhánh nào tại khu vực bạn chọn.");
+            throw new RequestException(Translator.toLocale("error.cart.no_branch_in_area"));
         }
 
         // Tìm kho nào trong tỉnh đó có đủ hàng
@@ -278,7 +284,7 @@ public class CartServiceImpl implements CartService {
             if (isEnough) return wh.getId(); // Tìm thấy kho cùng tỉnh có hàng
         }
 
-        throw new RequestException("Sản phẩm tạm hết hàng tại khu vực bạn chọn.");
+        throw new RequestException(Translator.toLocale("error.cart.out_of_stock_in_area"));
     }
 
     private void validateStockByProvince(Long skuId, int quantity, Integer provinceId) {
@@ -288,7 +294,7 @@ public class CartServiceImpl implements CartService {
         int availableInProvince = productStockService.getAvailableInProvince(skuId, provinceId);
 
         if (quantity > availableInProvince) {
-            throw new RequestException("Sản phẩm này đang tạm hết hàng tại khu vực bạn chọn.");
+            throw new RequestException(Translator.toLocale("error.cart.sku_out_of_stock_in_area", skuId));
         }
     }
 

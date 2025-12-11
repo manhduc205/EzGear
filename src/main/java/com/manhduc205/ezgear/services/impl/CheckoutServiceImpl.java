@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.CheckoutRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
@@ -44,26 +45,30 @@ public class CheckoutServiceImpl implements CheckoutService {
     @Transactional
     public CheckoutResponse checkout(CheckoutRequest req, Long userId) {
         if (req.getCartItems() == null || req.getCartItems().isEmpty()) {
-            throw new RequestException("Giỏ hàng trống, không thể thanh toán.");
+            throw new RequestException(Translator.toLocale("error.checkout.empty_cart"));
         }
         if (req.getAddressId() == null) {
-            throw new RequestException("Bạn chưa chọn địa chỉ giao hàng.");
+            throw new RequestException(Translator.toLocale("error.checkout.shipping_address_required"));
         }
         if (req.getServiceId() == null) {
-            throw new RequestException("Bạn chưa chọn phương thức vận chuyển.");
+            throw new RequestException(Translator.toLocale("error.checkout.shipping_service_required"));
         }
 
         // Lấy địa chỉ & Kho
         CustomerAddress address = customerAddressRepository
                 .findByIdAndUserId(req.getAddressId(), userId)
-                .orElseThrow(() -> new RequestException("Địa chỉ giao hàng không hợp lệ."));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.checkout.invalid_shipping_address")));
 
         // Chỉ cần Tổng tồn trong Tỉnh > 0 là cho phép đặt (dù có thể phải điều chuyển kho)
         for (CartItemRequest ci : req.getCartItems()) {
             int availableInProvince = productStockService.getAvailableInProvince(ci.getSkuId(), address.getProvinceId());
             if (availableInProvince < ci.getQuantity()) {
                 ProductSKU sku = productSkuRepository.findById(ci.getSkuId()).orElseThrow();
-                throw new RequestException("Sản phẩm " + sku.getName() + " không đủ hàng tại khu vực của bạn (Còn: " + availableInProvince + ").");
+                throw new RequestException(Translator.toLocale(
+                        "error.product.not_enough_stock_in_area",
+                        sku.getName(),
+                        availableInProvince
+                ));
             }
         }
 
@@ -79,10 +84,12 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         for (CartItemRequest ci : req.getCartItems()) {
             ProductSKU sku = productSkuRepository.findById(ci.getSkuId())
-                    .orElseThrow(() -> new RequestException("SKU " + ci.getSkuId() + " không tồn tại."));
+                    .orElseThrow(() -> new RequestException(
+                            Translator.toLocale("error.sku.not_found_by_id", ci.getSkuId())
+                    ));
 
             if (ci.getQuantity() == null || ci.getQuantity() <= 0) {
-                throw new RequestException("Số lượng không hợp lệ cho SKU " + ci.getSkuId());
+                throw new RequestException(Translator.toLocale("error.checkout.invalid_quantity", ci.getSkuId()));
             }
 
             long unitPrice = sku.getPrice() != null ? sku.getPrice() : 0L;

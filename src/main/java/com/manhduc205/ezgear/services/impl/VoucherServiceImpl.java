@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.SearchVoucherRequest;
@@ -56,7 +57,7 @@ public class VoucherServiceImpl implements VoucherService {
                                          long shippingFee) {
 
         Promotion promo = promotionRepository.findByCode(code)
-                .orElseThrow(() -> new RequestException("Mã giảm giá không tồn tại."));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.voucher.not_found")));
 
         validatePromotion(promo);
         validateMinOrder(promo, subtotal);
@@ -66,19 +67,19 @@ public class VoucherServiceImpl implements VoucherService {
 
     private void validatePromotion(Promotion promo){
         if(!"ACTIVE".equals(promo.getStatus()))
-            throw new RequestException("Voucher không khả dụng.");
+            throw new RequestException(Translator.toLocale("error.voucher.inactive"));
 
         LocalDateTime now = LocalDateTime.now();
         if(now.isBefore(promo.getStartAt()) || now.isAfter(promo.getEndAt()))
-            throw new RequestException("Voucher đã hết hạn.");
+            throw new RequestException(Translator.toLocale("error.voucher.expired"));
 
         if(promo.getUsageLimit() > 0 && promo.getUsedCount() >= promo.getUsageLimit())
-            throw new RequestException("Voucher đã hết lượt sử dụng.");
+            throw new RequestException(Translator.toLocale("error.voucher.usage_exceeded"));
     }
 
     private void validateMinOrder(Promotion promo, Long subtotal){
         if(subtotal < promo.getMinOrder())
-            throw new RequestException("Đơn hàng không đủ điều kiện tối thiểu.");
+            throw new RequestException(Translator.toLocale("error.voucher.min_order_not_met"));
     }
 
     private long calculateDiscountInternal(List<ApplyVoucherItemRequest> items,
@@ -136,7 +137,7 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     public Promotion createVoucher(VoucherRequest req) {
         if (promotionRepository.existsByCode(req.getCode())) {
-            throw new RequestException("Mã voucher đã tồn tại");
+            throw new RequestException(Translator.toLocale("error.voucher.code_exists"));
         }
 
         Promotion promo = Promotion.builder()
@@ -172,7 +173,7 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     public Promotion updateVoucher(Long id, VoucherRequest req) {
         Promotion promo = promotionRepository.findById(id)
-                .orElseThrow(() -> new RequestException("Voucher không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.voucher.not_found")));
 
         // code không update
         promo.setType(req.getType());
@@ -208,7 +209,7 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     public void deleteVoucher(Long id) {
         Promotion promo = promotionRepository.findById(id)
-                .orElseThrow(() -> new RequestException("Voucher không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.voucher.not_found")));
 
         // Xóa mapping category
         promotionCategoryRepository.deleteByPromotionId(id);
@@ -261,5 +262,3 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
 }
-
-

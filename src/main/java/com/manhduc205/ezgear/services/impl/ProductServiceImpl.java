@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
@@ -33,7 +34,7 @@ public class ProductServiceImpl implements ProductService {
     public Product getProductById(Long id) throws DataNotFoundException {
         return productRepository
                 .findById(id)
-                .orElseThrow(() -> new DataNotFoundException("Product not found"));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found")));
     }
 
     @Override
@@ -41,11 +42,11 @@ public class ProductServiceImpl implements ProductService {
     public Product createProduct(ProductDTO productDTO) throws DataNotFoundException {
         Category existsCategory = categoryRepository
                 .findById(productDTO.getCategoryId())
-                .orElseThrow(() -> new DataNotFoundException("Category not found"));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.category.not_found")));
 
         Brand existBrand = brandRepository
                 .findById(productDTO.getBrandId())
-                .orElseThrow(() -> new DataNotFoundException("Brand not found"));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.brand.not_found")));
         Product product = productMapper.toProduct(productDTO);
         product.setCategory(existsCategory);
         product.setBrand(existBrand);
@@ -56,13 +57,13 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public Product updateProduct( Long id, ProductDTO productDTO) throws DataNotFoundException {
         Product existingProduct = productRepository.findById(id)
-                .orElseThrow(() -> new DataNotFoundException("Product not found with id = " + id));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found_by_id", id)));
 
         Category category = categoryRepository.findById(productDTO.getCategoryId())
-                .orElseThrow(() -> new DataNotFoundException("Category not found"));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.category.not_found")));
 
         Brand brand = brandRepository.findById(productDTO.getBrandId())
-                .orElseThrow(() -> new DataNotFoundException("Brand not found"));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.brand.not_found")));
 
         // Update fields
         existingProduct.setName(productDTO.getName());
@@ -82,7 +83,7 @@ public class ProductServiceImpl implements ProductService {
 
     public void deleteProduct(Long id) throws Exception {
         Product existingProduct = productRepository.findById(id)
-                .orElseThrow(() -> new DataNotFoundException("Product not found with id = " + id));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found_by_id", id)));
         productRepository.delete(existingProduct);
     }
 
@@ -94,7 +95,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductImage createProductImage(Long productId , ProductImageDTO productImageDTO) throws Exception {
         Product existsProduct = productRepository.findById(productId)
-                .orElseThrow(() -> new DataNotFoundException("Product not found with id = " + productId));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found_by_id", productId)));
         ProductImage productImage = ProductImage
                 .builder()
                 .product(existsProduct)
@@ -103,7 +104,10 @@ public class ProductServiceImpl implements ProductService {
 
         int size = productImageRepository.findByProductId(productId).size();
         if(size >= ProductImage.MAXIMUM_IMAGES_PER_PRODUCT){
-            throw new DataNotFoundException("Number of images lest " +  ProductImage.MAXIMUM_IMAGES_PER_PRODUCT);
+            throw new DataNotFoundException(Translator.toLocale(
+                    "error.product.image_limit_reached",
+                    ProductImage.MAXIMUM_IMAGES_PER_PRODUCT
+            ));
         }
         return productImageRepository.save(productImage);
     }
@@ -111,7 +115,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductImage getProductImageById(Long imageId) throws Exception {
         return productImageRepository.findById(imageId)
-                .orElseThrow(() -> new DataNotFoundException("Product image not found with id = " + imageId));
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product_image.not_found_by_id", imageId)));
 
     }
 

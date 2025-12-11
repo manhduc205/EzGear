@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.responses.ShipmentHistoryResponse;
 import com.manhduc205.ezgear.dtos.responses.TrackingResponse;
 import com.manhduc205.ezgear.enums.GhnOrderStatus;
@@ -50,14 +51,14 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
     @Override
     public List<ShipmentHistoryResponse> getHistoryByShipmentId(Long shipmentId, CustomUserDetails user)  {
         Shipment shipment = shipmentRepository.findById(shipmentId)
-                .orElseThrow(() -> new RequestException("Vận đơn không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.shipment.not_found")));
         boolean isAdminOrStaff = user.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") ||
                         a.getAuthority().equals("ROLE_SYS_ADMIN"));
 
         // Nếu là khách hàng thường, chỉ được xem đơn của chính mình
         if (!isAdminOrStaff && !shipment.getOrder().getUserId().equals(user.getId())) {
-            throw new AccessDeniedException("Bạn không có quyền xem lịch sử hành trình của đơn hàng này.");
+            throw new AccessDeniedException(Translator.toLocale("error.shipment.access_denied_history"));
         }
         return shipmentHistoryRepository.findByShipmentIdOrderByEventTimeDesc(shipmentId)
                 .stream()
@@ -74,10 +75,10 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
     @Transactional(readOnly = true)
     public TrackingResponse getTrackingDetails(Long orderId, Long userId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RequestException("Đơn hàng không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.order.not_found_by_id")));
 
         if (!order.getUserId().equals(userId)) {
-            throw new AccessDeniedException("Bạn không có quyền xem hành trình đơn hàng này.");
+            throw new AccessDeniedException(Translator.toLocale("error.shipment.access_denied_tracking"));
         }
 
         Shipment shipment = shipmentRepository.findByOrderId(orderId).orElse(null);
@@ -86,8 +87,8 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
 
         // Đặt hàng thành công
         timeline.add(TrackingResponse.TrackingStep.builder()
-                .title("Đơn hàng đã đặt")
-                .description("EzGear đang chuẩn bị hàng")
+                .title(Translator.toLocale("status.shipment.order_created"))
+                .description(Translator.toLocale("status.shipment.preparing"))
                 .time(order.getCreatedAt())
                 .isCompleted(true)
                 .build());
@@ -103,7 +104,7 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
                 if (ghnStatus != null) {
                     displayTitle = ghnStatus.getDescription();
                 } else if (ShipmentStatus.READY_TO_PICK.name().equals(h.getStatus())) {
-                    displayTitle = "Đang chờ lấy hàng";
+                    displayTitle = Translator.toLocale("status.shipment.waiting_pickup");
                 }
 
                 timeline.add(TrackingResponse.TrackingStep.builder()
@@ -118,12 +119,12 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
         // Sắp xếp lại Timeline (Mới nhất lên đầu)
         timeline.sort((s1, s2) -> s2.getTime().compareTo(s1.getTime()));
 
-        String currentStatusStr = timeline.isEmpty() ? "Đang xử lý" : timeline.get(0).getTitle();
+        String currentStatusStr = timeline.isEmpty() ? Translator.toLocale("status.shipment.processing") : timeline.get(0).getTitle();
         String trackingCodeStr = shipment != null ? shipment.getTrackingCode() : null;
         String receiverAddr = order.getShippingAddress() != null ? order.getShippingAddress().getAddressLine() : "";
 
         // Lấy thời gian giao dự kiến (nếu cần có thể lưu vào Shipment khi tạo đơn)
-        String expectedTime = "Đang cập nhật";
+        String expectedTime = Translator.toLocale("status.shipment.pending_update");
 
         return TrackingResponse.builder()
                 .orderCode(order.getCode())
@@ -140,7 +141,10 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
         if (!"switch_status".equalsIgnoreCase(req.getType())) return;
 
         Shipment shipment = shipmentRepository.findByTrackingCode(req.getOrderCode())
-                .orElseThrow(() -> new RequestException("Vận đơn không tồn tại: " + req.getOrderCode()));
+                .orElseThrow(() -> new RequestException(Translator.toLocale(
+                        "error.shipment.not_found_by_code",
+                        req.getOrderCode()
+                )));
 
         // Map trạng thái GHN sang Enum của mình
         GhnOrderStatus ghnStatus = GhnOrderStatus.fromCode(req.getStatus());
@@ -150,7 +154,7 @@ public class ShipmentHistoryServiceImpl implements ShipmentHistoryService {
 
         // Bổ sung thông tin kho nếu có
         if (req.getWarehouse() != null) {
-            noteString += " tại " + req.getWarehouse();
+            noteString += Translator.toLocale("status.shipment.at_location", req.getWarehouse());
         }
 
         // Lưu Lịch sử

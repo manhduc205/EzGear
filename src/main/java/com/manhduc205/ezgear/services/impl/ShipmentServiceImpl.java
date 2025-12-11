@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.enums.GhnRequiredNote;
 import com.manhduc205.ezgear.enums.OrderStatus;
 import com.manhduc205.ezgear.enums.PaymentMethod;
@@ -45,19 +46,19 @@ public class ShipmentServiceImpl implements ShipmentService {
     public Shipment createShipment(Long orderId) {
         // lấy order
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RequestException("Order not found with id: " + orderId));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.order.not_found_by_id")));
         if (OrderStatus.SHIPPING.equals(order.getStatus())) {
-            throw new RequestException("Đơn hàng này đã được tạo vận đơn rồi.");
+            throw new RequestException(Translator.toLocale("error.shipment.already_created"));
         }
         // lấy hubwarehouse
         Warehouse hub = warehouseRepository.findById(order.getBranchId())
-                .orElseThrow(() -> new RequestException("Warehouse not found with id: " + order.getBranchId()));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.warehouse.not_found_by_id", order.getBranchId())));
         // build request gửi GHN
         GhnCreateOrderRequest req = buildGhnRequest(order, hub);
         GhnCreateOrderResponse res = ghnClient.post("/v2/shipping-order/create", req, GhnCreateOrderResponse.class);
 
         if (res == null || res.getData() == null) {
-            throw new RequestException("Lỗi tạo đơn GHN: " + (res != null ? res.getMessage() : "No response"));
+            throw new RequestException(Translator.toLocale("error.shipment.ghn_creation_failed", res != null ? res.getMessage() : Translator.toLocale("error.shipment.no_response")));
         }
         // 5. Lưu thông tin vận chuyển vào DB
         Shipment shipment = Shipment.builder()

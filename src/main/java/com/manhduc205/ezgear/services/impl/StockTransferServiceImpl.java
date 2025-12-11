@@ -1,5 +1,6 @@
 package com.manhduc205.ezgear.services.impl;
 
+import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.request.StockTransferRequest;
 import com.manhduc205.ezgear.dtos.responses.StockTransferResponse;
 import com.manhduc205.ezgear.enums.ROLE;
@@ -37,13 +38,13 @@ public class StockTransferServiceImpl implements StockTransferService {
     @Transactional
     public StockTransfer createTransfer(StockTransferRequest req, Long userId) {
         if (req.getFromWarehouseId().equals(req.getToWarehouseId())) {
-            throw new RequestException("Kho nguồn và kho đích không được trùng nhau.");
+            throw new RequestException(Translator.toLocale("error.stock_transfer.same_warehouses"));
         }
 
         Warehouse fromWh = warehouseRepo.findById(req.getFromWarehouseId())
-                .orElseThrow(() -> new RequestException("Kho nguồn không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.warehouse.not_found")));
         Warehouse toWh = warehouseRepo.findById(req.getToWarehouseId())
-                .orElseThrow(() -> new RequestException("Kho đích không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.warehouse.not_found")));
 
         User creator = userService.getUserById(userId);
         // trừ sysadmin thì admin chi nhánh chỉ đc tạo phiếu chuyển từ kho thuộc chi nhánh mình
@@ -53,7 +54,7 @@ public class StockTransferServiceImpl implements StockTransferService {
             Long sourceBranchId = fromWh.getBranch() != null ? fromWh.getBranch().getId() : null;
 
             if (userBranchId == null || !userBranchId.equals(sourceBranchId)) {
-                throw new RequestException("Bạn không có quyền điều chuyển hàng đi từ kho này!");
+                throw new RequestException(Translator.toLocale("error.stock_transfer.no_permission_from"));
             }
         }
         StockTransfer transfer = StockTransfer.builder()
@@ -71,10 +72,10 @@ public class StockTransferServiceImpl implements StockTransferService {
         // Duyệt danh sách hàng & Giữ chỗ
         for (var itemReq : req.getItems()) {
             ProductSKU sku = skuRepo.findById(itemReq.getSkuId())
-                    .orElseThrow(() -> new RequestException("SKU " + itemReq.getSkuId() + " không tồn tại"));
+                    .orElseThrow(() -> new RequestException(Translator.toLocale("error.sku.not_found_by_id", itemReq.getSkuId())));
 
             if (itemReq.getQuantity() <= 0) {
-                throw new RequestException("Số lượng chuyển phải lớn hơn 0");
+                throw new RequestException(Translator.toLocale("error.stock_transfer.invalid_quantity"));
             }
 
             // Gọi StockService để giữ chỗ tại kho nguồn
@@ -129,17 +130,17 @@ public class StockTransferServiceImpl implements StockTransferService {
     public void shipTransfer(Long transferId, Long userId) {
         User user = userService.getUserById(userId);
         StockTransfer transfer = stockTransferRepository.findById(transferId)
-                .orElseThrow(() -> new RequestException("Phiếu chuyển không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.stock_transfer.not_found")));
 
         if (transfer.getStatus() != TransferStatus.PENDING) {
-            throw new RequestException("Chỉ phiếu ở trạng thái PENDING mới được xuất kho.");
+            throw new RequestException(Translator.toLocale("error.stock_transfer.only_pending_shippable"));
         }
         if (!userService.isSysAdmin(user)) {
             Long userBranchId = user.getBranchId();
             Long fromBranchId = transfer.getFromWarehouse().getBranch().getId();
 
             if (userBranchId == null || !userBranchId.equals(fromBranchId)) {
-                throw new RequestException("Bạn không quản lý kho nguồn (Xuất), không thể xác nhận xuất kho!");
+                throw new RequestException(Translator.toLocale("error.stock_transfer.no_permission_ship"));
             }
         }
         Long fromWhId = transfer.getFromWarehouse().getId();
@@ -165,17 +166,17 @@ public class StockTransferServiceImpl implements StockTransferService {
     public void receiveTransfer(Long transferId, Long userId) {
         User user = userService.getUserById(userId);
         StockTransfer transfer = stockTransferRepository.findById(transferId)
-                .orElseThrow(() -> new RequestException("Phiếu chuyển không tồn tại"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.stock_transfer.not_found")));
 
         if (transfer.getStatus() != TransferStatus.SHIPPING) {
-            throw new RequestException("Phiếu chưa được xuất kho, không thể nhập.");
+            throw new RequestException(Translator.toLocale("error.stock_transfer.not_shipped_yet"));
         }
         if (!userService.isSysAdmin(user)) {
             Long userBranchId = user.getBranchId();
             Long toBranchId = transfer.getToWarehouse().getBranch().getId();
 
             if (userBranchId == null || !userBranchId.equals(toBranchId)) {
-                throw new RequestException("Hàng không chuyển về kho của bạn, bạn không thể nhận!");
+                throw new RequestException(Translator.toLocale("error.stock_transfer.no_permission_receive"));
             }
         }
         Long toWhId = transfer.getToWarehouse().getId();
@@ -211,14 +212,14 @@ public class StockTransferServiceImpl implements StockTransferService {
     public void cancelTransfer(Long transferId, Long userId) {
         User user = userService.getUserById(userId);
         StockTransfer transfer = stockTransferRepository.findById(transferId)
-                .orElseThrow(() -> new RequestException("Transfer not found"));
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.stock_transfer.not_found")));
 
         // Check quyền (Giữ nguyên logic check quyền của bạn)
         if (userService.isSysAdmin(user)) {
             Long userBranchId = user.getBranchId();
             Long fromBranchId = transfer.getFromWarehouse().getBranch().getId();
             if (userBranchId == null || !userBranchId.equals(fromBranchId)) {
-                throw new RequestException("Bạn không có quyền hủy phiếu của kho này.");
+                throw new RequestException(Translator.toLocale("error.stock_transfer.no_permission_cancel"));
             }
         }
 
@@ -239,7 +240,7 @@ public class StockTransferServiceImpl implements StockTransferService {
                 productStockService.addStock(skuId, fromWhId, qty);
 
             } else {
-                throw new RequestException("Không thể hủy phiếu đã hoàn thành hoặc đã hủy.");
+                throw new RequestException(Translator.toLocale("error.stock_transfer.not_cancellable"));
             }
         }
 
