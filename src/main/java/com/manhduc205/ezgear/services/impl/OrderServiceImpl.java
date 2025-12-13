@@ -50,7 +50,9 @@ public class OrderServiceImpl implements OrderService {
     private final ShippingFeeCalculatorService shippingFeeService;
     private final VoucherService voucherService;
     private final PaymentService paymentService;
+    private final InvoiceService invoiceService;
     private final MailService mailService;
+    private final FCMService fcmService;
 
 
     @Override
@@ -149,7 +151,7 @@ public class OrderServiceImpl implements OrderService {
             throw new RequestException(Translator.toLocale("error.order.shipping_fee_unavailable"));
         }
 
-        // 7. Tính Voucher
+        // Tính Voucher
         long discount = 0L;
         if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
             discount = voucherService.calculateDiscountForCheckout(
@@ -230,29 +232,24 @@ public class OrderServiceImpl implements OrderService {
             throw new RequestException(Translator.toLocale("error.order.items_out_of_stock_during_processing"));
         }
 
+        // 9. Xử lý Thanh toán (Logic phân nhánh COD/VNPAY)
+        String paymentUrl = null;
+        String responseMessage;
+
         if (PaymentMethod.COD.toString().equalsIgnoreCase(paymentMethod)) {
-            // Vì đã giữ chỗ thành công ở trên (bao gồm cả việc điều chuyển nếu cần)
-            // Giờ ta Commit luôn (Trừ kho thật)
+            // --- COD ---
             stockService.commitReservation(savedOrder.getCode());
 
             ProductPaymentRequest paymentReq = ProductPaymentRequest.builder()
                     .orderCode(savedOrder.getCode())
                     .amount(savedOrder.getGrandTotal())
                     .build();
-
             paymentService.createCodPayment(paymentReq);
             mailService.sendOrderConfirmation(savedOrder);
-            return OrderPlacementResponse.builder()
-                    .orderId(savedOrder.getId())
-                    .orderCode(savedOrder.getCode())
-                    .status(savedOrder.getStatus())
-                    .paymentUrl(null)
-                    .message(Translator.toLocale("success.order.cod_checkout"))
-                    .build();
 
+            responseMessage = Translator.toLocale("success.order.cod_checkout");
         } else {
             // --- VNPAY ---
-            // Đã giữ chỗ (Reserved) ở trên, giờ chỉ cần tạo URL thanh toán
             ProductPaymentRequest paymentReq = ProductPaymentRequest.builder()
                     .orderCode(savedOrder.getCode())
                     .amount(savedOrder.getGrandTotal())
@@ -260,15 +257,33 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             VNPayResponse vnpRes = paymentService.createPaymentVNPay(paymentReq);
+            paymentUrl = vnpRes.getPaymentUrl();
 
-            return OrderPlacementResponse.builder()
-                    .orderId(savedOrder.getId())
-                    .orderCode(savedOrder.getCode())
-                    .status(savedOrder.getStatus())
-                    .paymentUrl(vnpRes.getPaymentUrl())
-                    .message(Translator.toLocale("instruction.order.pay_with_vnpay"))
-                    .build();
+            responseMessage = Translator.toLocale("instruction.order.pay_with_vnpay");
         }
+
+        // Notification
+        try {
+            fcmService.sendOrderNotification(savedOrder.getCode(), savedOrder.getId(), savedOrder.getGrandTotal());
+        } catch (Exception e) {
+            log.warn("Lỗi gửi thông báo FCM: {}", e.getMessage());
+        }
+
+        // hóa đơn
+        try {
+            invoiceService.createInvoice(savedOrder.getId());
+        } catch (Exception e) {
+            log.error("Lỗi sinh hóa đơn tự động: {}", e.getMessage());
+        }
+
+        // 12. Return duy nhất
+        return OrderPlacementResponse.builder()
+                .orderId(savedOrder.getId())
+                .orderCode(savedOrder.getCode())
+                .status(savedOrder.getStatus())
+                .paymentUrl(paymentUrl)
+                .message(responseMessage)
+                .build();
     }
 
     private String generateOrderCode() {
