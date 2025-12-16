@@ -2,6 +2,7 @@ package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.UserDTO;
+import com.manhduc205.ezgear.dtos.responses.UserResponse;
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.models.Role;
 import com.manhduc205.ezgear.models.User;
@@ -76,6 +77,16 @@ public class UserServiceImpl implements UserService {
                 .orElse("default@example.com");
 
     }
+
+    @Override
+    public UserResponse getMyProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.user.not_found")));
+
+        // Tái sử dụng hàm static fromUser
+        return UserResponse.fromUser(user);
+    }
+
     @Override
     public User getUserById(Long id) {
         return userRepository.findById(id)

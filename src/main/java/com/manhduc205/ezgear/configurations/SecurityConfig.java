@@ -71,6 +71,7 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/users/**").permitAll()
                         .requestMatchers("/shipping/**").permitAll()
                         .requestMatchers("/customer-addresses/**").permitAll()
                         .requestMatchers("/payment/**").permitAll()
@@ -79,6 +80,7 @@ public class SecurityConfig {
                         .requestMatchers("/ghn-locations/**").permitAll()
                         .requestMatchers("/orders/**").permitAll()
                         .requestMatchers("/locations/**").permitAll()
+                        .requestMatchers("/notifications/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

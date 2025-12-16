@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserRegisterResponse {
+public class UserResponse {
     private Long id;
 
     @JsonProperty("full_name")
@@ -31,8 +31,8 @@ public class UserRegisterResponse {
     @JsonProperty("roles")
     private Set<String> roles;
 
-    public static UserRegisterResponse fromUser(User user) {
-        return UserRegisterResponse.builder()
+    public static UserResponse fromUser(User user) {
+        return UserResponse.builder()
                 .id(user.getId())
                 .fullName(user.getFullName())
                 .email(user.getEmail())

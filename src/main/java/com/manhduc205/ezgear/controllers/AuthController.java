@@ -5,7 +5,7 @@ import com.manhduc205.ezgear.dtos.request.LoginRequest;
 import com.manhduc205.ezgear.dtos.request.LogoutRequest;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.dtos.responses.AuthResponse;
-import com.manhduc205.ezgear.dtos.responses.UserRegisterResponse;
+import com.manhduc205.ezgear.dtos.responses.UserResponse;
 import com.manhduc205.ezgear.models.User;
 import com.manhduc205.ezgear.services.AuthService;
 
@@ -65,7 +65,7 @@ public class AuthController {
             return ResponseEntity.ok().body(
                     ApiResponse.builder().success(true)
                     .message("User registered successfully")
-                            .payload(UserRegisterResponse.fromUser(newUser))
+                            .payload(UserResponse.fromUser(newUser))
                             .build()
             );
 
