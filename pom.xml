@@ -161,7 +161,12 @@
             <artifactId>firebase-admin</artifactId>
             <version>9.2.0</version>
         </dependency>
-
+<!--        SSO with Google-->
+        <dependency>
+            <groupId>com.google.api-client</groupId>
+            <artifactId>google-api-client</artifactId>
+            <version>2.2.0</version>
+        </dependency>
     </dependencies>
 
 	<build>

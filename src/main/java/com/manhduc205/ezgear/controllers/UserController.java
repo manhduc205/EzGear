@@ -6,6 +6,7 @@ import com.manhduc205.ezgear.dtos.responses.ApiResponse;
 import com.manhduc205.ezgear.dtos.responses.UserResponse;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.User;
+import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +29,21 @@ public class UserController {
 
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse> getMyProfile() {
-        // Lấy User hiện tại từ SecurityContext (Do Filter đã xác thực Token rồi)
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
         if (authentication == null || !authentication.isAuthenticated() || authentication.getPrincipal().equals("anonymousUser")) {
             throw new RequestException(Translator.toLocale("error.auth.unauthenticated"));
         }
-        User currentUser = (User) authentication.getPrincipal();
-        Long userId = currentUser.getId();
+        Long userId;
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof CustomUserDetails) {
+            CustomUserDetails userDetails = (CustomUserDetails) principal;
+            userId = userDetails.getUser().getId();
+
+        } else {
+            throw new RequestException(Translator.toLocale("error.auth.unauthenticated"));
+        }
 
         UserResponse userResponse = userService.getMyProfile(userId);
 

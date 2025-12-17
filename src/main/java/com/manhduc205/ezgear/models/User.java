@@ -23,8 +23,14 @@ public class User extends AbstractEntity implements UserDetails {
     @Column(unique = true, length = 32)
     private String phone;
 
-    @Column(nullable = false, name = "password_hash")
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(name = "google_account_id", unique = true)
+    private String googleAccountId;
+
+    @Column(name = "facebook_account_id", unique = true)
+    private String facebookAccountId;
 
     private String fullName;
 
@@ -59,12 +65,12 @@ public class User extends AbstractEntity implements UserDetails {
 
     @Override
     public String getPassword() {
-        return "";
+        return passwordHash;
     }
 
     @Override
     public String getUsername() {
-        return "";
+        return email;
     }
 
     @Override

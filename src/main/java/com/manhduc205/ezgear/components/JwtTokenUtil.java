@@ -93,7 +93,24 @@ public class JwtTokenUtil {
         Claims claims = extractClaims(token, accessKey);
         return claims.get("branchId", Long.class);
     }
+    public String extractSubject(String token) {
+        return getUsernameFromAccessToken(token);
+    }
 
+    public boolean isTokenExpired(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(accessKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getExpiration().before(new Date());
+        } catch (ExpiredJwtException e) {
+            return true; // Đã hết hạn
+        } catch (Exception e) {
+            return true; // Lỗi khác cũng coi như không dùng được
+        }
+    }
 
     // ================= COMMON UTILS =================
 
