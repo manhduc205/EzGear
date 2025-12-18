@@ -18,7 +18,7 @@ public class CustomerAddressService {
 
     private final CustomerAddressRepository customerAddressRepository;
     private final GhnLocalLocationService ghnLocalLocationService;
-
+    @Transactional
     public CustomerAddressDTO createAddress(CustomerAddressRequest req) {
 
         if (req.getProvinceId() == null || req.getDistrictId() == null || req.getWardCode() == null) {

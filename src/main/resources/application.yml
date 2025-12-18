@@ -71,6 +71,7 @@ cloudinary:
   api_secret: ${CLOUDINARY_API_SECRET}
 google:
   client-id: ${GOOGLE_CLIENT_ID}
+  secret: ${GOOGLE_CLIENT_SECRET}
 ghn:
   env: staging
   base-url:

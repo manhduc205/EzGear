@@ -10,9 +10,14 @@ import com.manhduc205.ezgear.dtos.request.LoginRequest;
 import com.manhduc205.ezgear.dtos.request.LogoutRequest;
 import com.manhduc205.ezgear.dtos.request.SocialLoginRequest;
 import com.manhduc205.ezgear.dtos.responses.AuthResponse;
+import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.exceptions.RequestException;
+import com.manhduc205.ezgear.models.Role;
 import com.manhduc205.ezgear.models.User;
+import com.manhduc205.ezgear.models.UserRole;
+import com.manhduc205.ezgear.repositories.RoleRepository;
 import com.manhduc205.ezgear.repositories.UserRepository;
+import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.AuthService;
 import com.manhduc205.ezgear.services.BlacklistService;
 import com.manhduc205.ezgear.services.RedisService;
@@ -24,15 +29,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -47,10 +51,10 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final RedisService  redisService;
     private final BlacklistService blacklistService;
-
+    private final RoleRepository roleRepository;
     @Value("${google.client-id}")
     private String googleClientId;
-
+    private final WebClient webClient;
     //Trong môi trường thực tế, nên sử dụng Authorization Server
     // chuyên dụng như Keycloak, Auth0, hoặc các nền tảng IDaaS.
     private AuthResponse generateAuthResponse(User user, Authentication authentication) {
@@ -102,7 +106,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse loginWithGoogle(SocialLoginRequest request) {
         try {
-            // 1. Verify Token với Google
+            // Verify Token với Google
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
                     .setAudience(Collections.singletonList(googleClientId))
                     .build();
@@ -131,15 +135,20 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public AuthResponse loginWithFacebook(SocialLoginRequest request) {
         try {
-            // 1. Gọi Graph API của Facebook để lấy thông tin user từ accessToken
+            // Gọi Graph API của Facebook để lấy thông tin user từ accessToken
             // API: https://graph.facebook.com/me?fields=id,name,email,picture&access_token=...
 
-            WebClient webClient = WebClient.create();
             Map fbUserInfo = webClient.get()
-                    .uri("https://graph.facebook.com/me?fields=id,name,email,picture&access_token=" + request.getToken())
+                    .uri(uriBuilder -> uriBuilder
+                            .scheme("https")
+                            .host("graph.facebook.com")
+                            .path("/me")
+                            .queryParam("fields", "id,name,email,picture")
+                            .queryParam("access_token", request.getToken())
+                            .build())
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .block(); // Block để lấy kết quả đồng bộ
+                    .block();
 
             if (fbUserInfo == null || fbUserInfo.get("id") == null) {
                 throw new RequestException("Invalid Facebook Token");
@@ -149,8 +158,7 @@ public class AuthServiceImpl implements AuthService {
             String name = (String) fbUserInfo.get("name");
             String email = (String) fbUserInfo.get("email");
 
-            // Lưu ý: Facebook đôi khi không trả về email (nếu đk bằng sđt).
-            // Nếu không có email, bạn có thể generate email giả dạng: id@facebook.com hoặc bắt user cập nhật sau.
+            // Nếu không có email
             if (email == null) {
                 email = facebookId + "@facebook.ezgear.com";
             }
@@ -162,18 +170,16 @@ public class AuthServiceImpl implements AuthService {
             throw new RequestException("Facebook Login Failed");
         }
     }
-
-    // ================== HÀM XỬ LÝ CHUNG (MERGE ACCOUNT) ==================
+    // gộp tk
     private AuthResponse processSocialLogin(String email, String name, String socialId, String provider) {
-        // 1. Kiểm tra User có tồn tại không
         User user = userRepository.findByEmail(email).orElse(null);
 
         if (user == null) {
-            // CASE A: User mới tinh -> Tạo mới
+            // User mới -> Tạo mới
             user = User.builder()
                     .email(email)
                     .fullName(name)
-                    .passwordHash(null) // Không có pass
+                    .passwordHash(null)
                     .status(User.Status.ACTIVE)
                     .isStaff(false)
                     .userRoles(new HashSet<>()) // Cần logic set Role mặc định ở đây
@@ -183,13 +189,18 @@ public class AuthServiceImpl implements AuthService {
             if ("GOOGLE".equals(provider)) user.setGoogleAccountId(socialId);
             else if ("FACEBOOK".equals(provider)) user.setFacebookAccountId(socialId);
 
-            // Gán Role (Ví dụ lấy role USER từ DB)
-            // Role userRole = roleRepository.findByName("USER");
-            // user.getUserRoles().add(new UserRole(user, userRole));
+            // [QUAN TRỌNG 2] Gán Role CUSTOMER (hoặc USER)
+            // Lưu ý: Đảm bảo trong bảng 'roles' của DB đã có bản ghi tên là "USER" hoặc "CUSTOMER"
+            Role defaultRole = roleRepository.findById(4L)
+                    .orElseThrow(() -> new DataNotFoundException("Default role not found"));
+            UserRole newUserRole = UserRole.builder()
+                    .user(user)
+                    .role(defaultRole)
+                    .build();
+            user.getUserRoles().add(newUserRole);
 
             user = userRepository.save(user);
         } else {
-            // CASE B: User đã tồn tại -> Update ID nếu chưa có (Merge)
             boolean isUpdated = false;
             if ("GOOGLE".equals(provider) && user.getGoogleAccountId() == null) {
                 user.setGoogleAccountId(socialId);
@@ -204,22 +215,20 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
-        // 2. Tự tạo Authentication (Vì không có password)
-        // Tạo đối tượng UserDetails/CustomUserDetails từ user tìm được
-        // Lưu ý: CustomUserDetails cần xử lý trường hợp password null
+        Set<SimpleGrantedAuthority> authorities = user.getUserRoles().stream()
+                .map(userRole -> new SimpleGrantedAuthority("ROLE_" + userRole.getRole().getCode().toUpperCase()))
+                .collect(Collectors.toSet());
 
-        // Giả sử bạn dùng CustomUserDetails:
-        // CustomUserDetails customUserDetails = new CustomUserDetails(user);
+        CustomUserDetails customUserDetails = new CustomUserDetails(user, authorities);
 
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                user, // Hoặc customUserDetails
+                customUserDetails,
                 null,
-                user.getAuthorities()
+                authorities
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        // 3. Sinh Token trả về
         return generateAuthResponse(user, authentication);
     }
 
