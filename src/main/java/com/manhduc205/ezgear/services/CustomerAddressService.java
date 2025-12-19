@@ -37,6 +37,10 @@ public class CustomerAddressService {
                 .isDefault(Boolean.TRUE.equals(req.getIsDefault()))
                 .build();
 
+        String fullAddr = generateFullAddress(
+                req.getAddressLine(), req.getProvinceId(), req.getDistrictId(), req.getWardCode()
+        );
+        address.setFullAddress(fullAddr);
         // Clear default cũ nếu chọn default
         if (Boolean.TRUE.equals(req.getIsDefault())) {
             customerAddressRepository.clearDefaultForUser(req.getUserId());
@@ -48,30 +52,38 @@ public class CustomerAddressService {
 
     @Transactional
     public CustomerAddressDTO updateAddress(Long id, CustomerAddressRequest req) {
-
         CustomerAddress address = customerAddressRepository.findById(id)
                 .orElseThrow(() -> new RequestException("Customer address not found"));
 
-        if (req.getReceiverName() != null)
-            address.setReceiverName(req.getReceiverName());
+        if (req.getReceiverName() != null) address.setReceiverName(req.getReceiverName());
+        if (req.getReceiverPhone() != null) address.setReceiverPhone(req.getReceiverPhone());
+        if (req.getLabel() != null) address.setLabel(req.getLabel());
 
-        if (req.getReceiverPhone() != null)
-            address.setReceiverPhone(req.getReceiverPhone());
+        boolean isLocationChanged = false;
 
-        if (req.getProvinceId() != null)
+        if (req.getProvinceId() != null) {
             address.setProvinceId(req.getProvinceId());
-
-        if (req.getDistrictId() != null)
+            isLocationChanged = true;
+        }
+        if (req.getDistrictId() != null) {
             address.setDistrictId(req.getDistrictId());
-
-        if (req.getWardCode() != null)
+            isLocationChanged = true;
+        }
+        if (req.getWardCode() != null) {
             address.setWardCode(req.getWardCode());
-
-        if (req.getAddressLine() != null)
+            isLocationChanged = true;
+        }
+        if (req.getAddressLine() != null) {
             address.setAddressLine(req.getAddressLine());
+            isLocationChanged = true;
+        }
 
-        if (req.getLabel() != null)
-            address.setLabel(req.getLabel());
+        if (isLocationChanged) {
+            String newFullAddress = generateFullAddress(
+                    address.getAddressLine(), address.getProvinceId(), address.getDistrictId(), address.getWardCode()
+            );
+            address.setFullAddress(newFullAddress);
+        }
 
         if (req.getIsDefault() != null) {
             if (req.getIsDefault()) {
@@ -105,22 +117,23 @@ public class CustomerAddressService {
                 .districtId(customerAddress.getDistrictId())
                 .wardCode(customerAddress.getWardCode())
                 .addressLine(customerAddress.getAddressLine())
+                .fullAddress(customerAddress.getFullAddress())
                 .receiverName(customerAddress.getReceiverName())
                 .receiverPhone(customerAddress.getReceiverPhone())
                 .label(customerAddress.getLabel())
                 .build();
     }
 
-    public String getFullAddress(CustomerAddress customerAddress) {
-        String province = ghnLocalLocationService.getProvinceName(customerAddress.getProvinceId());
-        String district = ghnLocalLocationService.getDistrictName(customerAddress.getDistrictId());
-        String ward = ghnLocalLocationService.getWardName(customerAddress.getWardCode());
+    private String generateFullAddress(String specificAddress, Integer provinceId, Integer districtId, String wardCode) {
+        String province = ghnLocalLocationService.getProvinceName(provinceId);
+        String district = ghnLocalLocationService.getDistrictName(districtId);
+        String ward = ghnLocalLocationService.getWardName(wardCode);
 
         return String.join(", ",
-                customerAddress.getAddressLine() != null ? customerAddress.getAddressLine() : "",
+                specificAddress != null ? specificAddress : "",
                 ward,
                 district,
                 province
-        ).replaceAll(",\\s*,", ",");
+        ).replaceAll("^, |, , ", "");
     }
 }

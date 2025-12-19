@@ -15,6 +15,7 @@ public class CustomerAddressDTO {
     private Integer districtId;
     private String wardCode;
     private String addressLine;
+    private String fullAddress;
     private String receiverName;
     private String receiverPhone;
     private String label;

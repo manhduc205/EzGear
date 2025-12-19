@@ -34,6 +34,9 @@ public class CustomerAddress extends AbstractEntity {
     @Column(name = "address_line")
     private String addressLine;
 
+    @Column(name = "full_address")
+    private String fullAddress;
+
     @Column(name = "label")
     private String label; // Nhà riêng / Văn phòng
 

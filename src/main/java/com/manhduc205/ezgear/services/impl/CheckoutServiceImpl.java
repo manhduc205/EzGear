@@ -139,6 +139,7 @@ public class CheckoutServiceImpl implements CheckoutService {
             }
         } catch (Exception e) {
             log.error("Lỗi tính phí ship checkout: {}", e.getMessage());
+            throw new RequestException(Translator.toLocale("error.shipping.service_unavailable"));
         }
 
         // Tính Voucher
@@ -168,7 +169,7 @@ public class CheckoutServiceImpl implements CheckoutService {
 
         ShippingAddressInfo addressInfo = ShippingAddressInfo.builder()
                 .id(address.getId())
-                .fullAddress(customerAddressService.getFullAddress(address))
+                .fullAddress(address.getFullAddress())
                 .isDefault(Boolean.TRUE.equals(address.getIsDefault()))
                 .build();
 
