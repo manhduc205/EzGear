@@ -81,6 +81,7 @@ public class SecurityConfig {
                         .requestMatchers("/orders/**").permitAll()
                         .requestMatchers("/locations/**").permitAll()
                         .requestMatchers("/notifications/**").permitAll()
+                        .requestMatchers("/reviews/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

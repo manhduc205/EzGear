@@ -41,4 +41,11 @@ public class Product extends AbstractEntity{
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    @Column(name = "rating_average")
+    @Builder.Default
+    private Double ratingAverage = 0.0;
+
+    @Column(name = "review_count")
+    @Builder.Default
+    private Integer reviewCount = 0;
 }
