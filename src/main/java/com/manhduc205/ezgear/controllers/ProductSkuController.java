@@ -3,6 +3,7 @@ package com.manhduc205.ezgear.controllers;
 import com.manhduc205.ezgear.dtos.ProductSkuDTO;
 import com.manhduc205.ezgear.dtos.request.ProductSkuSearchRequest;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
+import com.manhduc205.ezgear.dtos.responses.product.ProductThumbnailResponse;
 import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.services.ProductSkuService;
 import jakarta.validation.Valid;
@@ -58,7 +59,7 @@ public class ProductSkuController {
 
     @PostMapping("/search")
     public ResponseEntity<?> searchProductSku (@Valid @RequestBody ProductSkuSearchRequest request) {
-        Page<ProductSKU> result = productSkuService.searchProductSkus(request);
+        Page<ProductThumbnailResponse> result = productSkuService.searchProductSkus(request);
         return ResponseEntity.ok(ApiResponse.builder()
                 .success(true)
                 .payload(result)

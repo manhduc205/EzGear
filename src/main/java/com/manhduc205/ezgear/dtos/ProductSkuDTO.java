@@ -17,8 +17,8 @@ public class ProductSkuDTO {
 
     private String name;
 
-    @NotNull(message = "Price is required")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Price must be > 0")
+    private String optionName;
+    private String skuImage;
     private Long price;
 
     private String barcode;

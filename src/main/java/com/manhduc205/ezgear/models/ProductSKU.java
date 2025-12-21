@@ -25,6 +25,12 @@ public class ProductSKU extends AbstractEntity {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "option_name")
+    private String optionName;
+
+    @Column(name = "sku_image")
+    private String skuImage;
+
     @Column(name = "price", precision = 15, scale = 2)
     private Long price;
 
