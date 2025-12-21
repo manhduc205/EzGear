@@ -3,21 +3,22 @@ package com.manhduc205.ezgear.services.impl;
 import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
+import com.manhduc205.ezgear.dtos.responses.product.ProductDetailResponse;
+import com.manhduc205.ezgear.dtos.responses.product.ProductSiblingResponse;
+import com.manhduc205.ezgear.dtos.responses.product.ProductSkuDetailResponse;
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.mapper.ProductMapper;
-import com.manhduc205.ezgear.models.Brand;
-import com.manhduc205.ezgear.models.Category;
-import com.manhduc205.ezgear.models.Product;
-import com.manhduc205.ezgear.models.ProductImage;
-import com.manhduc205.ezgear.repositories.BrandRepository;
-import com.manhduc205.ezgear.repositories.CategoryRepository;
-import com.manhduc205.ezgear.repositories.ProductImageRepository;
-import com.manhduc205.ezgear.repositories.ProductRepository;
+import com.manhduc205.ezgear.models.*;
+import com.manhduc205.ezgear.repositories.*;
 import com.manhduc205.ezgear.services.CategoryService;
 import com.manhduc205.ezgear.services.ProductService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +30,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final CategoryService categoryService;
     private final ProductImageRepository productImageRepository;
-
+    private final ProductSkuRepository productSkuRepository;
     @Override
     public Product getProductById(Long id) throws DataNotFoundException {
         return productRepository
@@ -119,4 +120,74 @@ public class ProductServiceImpl implements ProductService {
 
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ProductDetailResponse getProductDetail(String slug) {
+        Product product = productRepository.findBySlugAndIsActiveTrue(slug)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found or inactive"));
+
+        List<ProductSKU> skus = productSkuRepository.findByProductIdAndIsActiveTrueOrderByPriceAsc(product.getId());
+        List<ProductSkuDetailResponse> skuResponses = skus.stream()
+                .map(sku -> ProductSkuDetailResponse.builder()
+                        .id(sku.getId())
+                        .sku(sku.getSku())
+                        .skuName(sku.getName())
+                        .optionName(sku.getOptionName())
+                        .skuImage(sku.getSkuImage())
+                        .price(sku.getPrice())
+                        .isStockAvailable(true) // Tạm thời để true, sau này tích hợp stock sau
+                        .build())
+                .toList();
+
+        // 2. Lấy Gallery ảnh
+        List<String> galleryImages = productImageRepository.findByProductId(product.getId())
+                .stream().map(ProductImage::getImageUrl).toList();
+
+        return ProductDetailResponse.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .slug(product.getSlug())
+                .seriesCode(product.getSeriesCode())
+                .shortDesc(product.getShortDesc())
+                .ratingAverage(product.getRatingAverage())
+                .reviewCount(product.getReviewCount())
+                .skus(skuResponses)          // Trả về list SKU
+                .galleryImages(galleryImages) // Trả về album ảnh
+                .build();
+    }
+
+    // lấy sản phẩm liên quan cùng series code
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProductSiblingResponse> getRelatedProducts(String slug) {
+        Product currentProduct = productRepository.findBySlugAndIsActiveTrue(slug)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found"));
+
+        if (currentProduct.getSeriesCode() == null || currentProduct.getSeriesCode().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Product> siblings = productRepository.findBySeriesCodeAndIdNot(
+                currentProduct.getSeriesCode(),
+                currentProduct.getId()
+        );
+
+        return siblings.stream().map(p -> {
+            // Lấy giá của SKU rẻ nhất
+            Long displayPrice = p.getProductSkus().stream()
+                    .filter(ProductSKU::getIsActive)
+                    .map(ProductSKU::getPrice)
+                    .min(Long::compare)
+                    .orElse(0L);
+
+            return ProductSiblingResponse.builder()
+                    .id(p.getId())
+                    .name(p.getName())
+                    .slug(p.getSlug())
+                    .imageUrl(p.getImageUrl())
+                    .price(displayPrice)
+                    .isCurrent(false)
+                    .build();
+        }).toList();
+    }
 }

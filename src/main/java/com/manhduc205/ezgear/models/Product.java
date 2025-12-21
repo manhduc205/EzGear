@@ -1,8 +1,11 @@
 package com.manhduc205.ezgear.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.List;
 
 @Entity
 @Getter
@@ -29,6 +32,9 @@ public class Product extends AbstractEntity{
     @Column(nullable = false, unique = true)
     private String slug;
 
+    @Column(name = "series_code")
+    private String seriesCode;
+
     @Column(columnDefinition = "TEXT")
     private String shortDesc;
 
@@ -48,4 +54,10 @@ public class Product extends AbstractEntity{
     @Column(name = "review_count")
     @Builder.Default
     private Integer reviewCount = 0;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<ProductSKU> productSkus;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<ProductImage> productImages;
 }

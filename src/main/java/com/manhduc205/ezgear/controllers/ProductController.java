@@ -4,6 +4,8 @@ import com.github.javafaker.Faker;
 import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
+import com.manhduc205.ezgear.dtos.responses.product.ProductDetailResponse;
+import com.manhduc205.ezgear.dtos.responses.product.ProductSiblingResponse;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductImage;
 import com.manhduc205.ezgear.repositories.ProductRepository;
@@ -260,5 +262,25 @@ public class ProductController {
         }
         return ResponseEntity.ok("Fake product generated successfully");
 
+    }
+
+    @GetMapping("/{slug}")
+    public ResponseEntity<?> getProductDetail(@PathVariable String slug) {
+        ProductDetailResponse response = productService.getProductDetail(slug);
+        return ResponseEntity.ok(ApiResponse.builder()
+                .success(true)
+                .message("Get product detail success")
+                .payload(response)
+                .build());
+    }
+
+    @GetMapping("/{slug}/related")
+    public ResponseEntity<?> getRelatedProducts(@PathVariable String slug) {
+        List<ProductSiblingResponse> response = productService.getRelatedProducts(slug);
+        return ResponseEntity.ok(ApiResponse.builder()
+                .success(true)
+                .message("Get related products success")
+                .payload(response)
+                .build());
     }
 }

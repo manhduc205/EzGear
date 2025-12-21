@@ -125,9 +125,6 @@ public class CartServiceImpl implements CartService {
                 .build();
     }
 
-    // ======================= CRUD GIỎ HÀNG ======================= //
-
-    // Sửa lại hàm getCart để nhận provinceId
     @Override
     @Transactional(readOnly = true)
     public CartResponse getCart(Long userId, Integer provinceId) {
@@ -141,10 +138,8 @@ public class CartServiceImpl implements CartService {
 
             // CHECK TỒN KHO THEO TỈNH
             int available = productStockService.getAvailableInProvince(ci.getSkuId(), currentProvinceId);
-
-            // Logic xác định hết hàng:
-            // 1. Nếu tồn kho = 0 -> Chắc chắn hết.
-            // 2. Nếu khách mua 5 mà kho còn 2 -> Cũng coi như không đủ hàng (isOutOfStock = true)
+            // Nếu tồn kho = 0 -> Chắc chắn hết
+            // Nếu khách mua 5 mà kho còn 2
             boolean isOOS = (available < ci.getQuantity());
 
             return CartItemResponse.builder()
@@ -171,7 +166,7 @@ public class CartServiceImpl implements CartService {
     public CartResponse addItem(Long userId, CartItemRequest req, Integer provinceId) {
         int currentProvinceId = (provinceId != null) ? provinceId : 201;
 
-        // 1. Validate theo Tỉnh đang chọn (Không bắt địa chỉ mặc định nữa)
+        // Validate theo Tỉnh đang chọn (Không bắt địa chỉ mặc định nữa)
         validateStockByProvince(req.getSkuId(), req.getQuantity(), currentProvinceId);
 
         Cart cart = getOrCreateCart(userId);
@@ -248,8 +243,6 @@ public class CartServiceImpl implements CartService {
         cartRepository.save(cart);
     }
 
-    // ===================== HELPER METHODS ===================== //
-
     private Cart getOrCreateCart(Long userId) {
         return cartRepository.findByUserId(userId)
                 .orElseGet(() -> cartRepository.save(
@@ -262,7 +255,7 @@ public class CartServiceImpl implements CartService {
                 ));
     }
 
-    // Logic tìm kho theo Tỉnh/Thành (Dùng cho Preview)
+    // Logic tìm kho theo Tỉnh/Thành
     private Long resolveWarehouseByLocation(Integer provinceId, List<CartItemRequest> items) {
         // Chỉ lấy danh sách kho trong Tỉnh đang chọn
         List<Warehouse> warehouses = warehouseRepository.findActiveWarehousesByProvince(provinceId);
