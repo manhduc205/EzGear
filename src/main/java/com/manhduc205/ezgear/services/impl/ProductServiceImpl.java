@@ -124,7 +124,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public ProductDetailResponse getProductDetail(String slug) {
         Product product = productRepository.findBySlugAndIsActiveTrue(slug)
-                .orElseThrow(() -> new EntityNotFoundException("Product not found or inactive"));
+                .orElseThrow(() -> new EntityNotFoundException(Translator.toLocale("error.product.not_found_or_inactive")));
 
         List<ProductSKU> skus = productSkuRepository.findByProductIdAndIsActiveTrueOrderByPriceAsc(product.getId());
         List<ProductSkuDetailResponse> skuResponses = skus.stream()
@@ -139,7 +139,7 @@ public class ProductServiceImpl implements ProductService {
                         .build())
                 .toList();
 
-        // 2. Lấy Gallery ảnh
+        // Lấy ảnh
         List<String> galleryImages = productImageRepository.findByProductId(product.getId())
                 .stream().map(ProductImage::getImageUrl).toList();
 
@@ -151,8 +151,8 @@ public class ProductServiceImpl implements ProductService {
                 .shortDesc(product.getShortDesc())
                 .ratingAverage(product.getRatingAverage())
                 .reviewCount(product.getReviewCount())
-                .skus(skuResponses)          // Trả về list SKU
-                .galleryImages(galleryImages) // Trả về album ảnh
+                .skus(skuResponses)
+                .galleryImages(galleryImages)
                 .build();
     }
 
@@ -161,7 +161,7 @@ public class ProductServiceImpl implements ProductService {
     @Transactional(readOnly = true)
     public List<ProductSiblingResponse> getRelatedProducts(String slug) {
         Product currentProduct = productRepository.findBySlugAndIsActiveTrue(slug)
-                .orElseThrow(() -> new EntityNotFoundException("Product not found"));
+                .orElseThrow(() -> new EntityNotFoundException(Translator.toLocale("error.product.not_found")));
 
         if (currentProduct.getSeriesCode() == null || currentProduct.getSeriesCode().isEmpty()) {
             return new ArrayList<>();
