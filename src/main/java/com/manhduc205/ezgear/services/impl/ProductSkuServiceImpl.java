@@ -11,6 +11,7 @@ import com.manhduc205.ezgear.repositories.ProductSkuRepository;
 import com.manhduc205.ezgear.services.ProductSkuService;
 import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -100,12 +101,18 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     @Override
     public Page<ProductThumbnailResponse> searchProductSkus(ProductSkuSearchRequest request) {
         Specification<ProductSKU> spec = (root, query, cb) -> {
+            // FIX N+1: Chỉ fetch Join Product khi đây là query lấy dữ liệu
+            if (Long.class != query.getResultType()) {
+                root.fetch("product", JoinType.LEFT);
+            }
+
             boolean activeStatus = (request.getIsActive() != null) ? request.getIsActive() : true;
             Predicate skuActive = cb.equal(root.get("isActive"), activeStatus);
             Predicate parentActive = cb.equal(root.join("product").get("isActive"), true);
             return cb.and(skuActive, parentActive);
         };
 
+        // 2. Các bộ lọc tìm kiếm (Giữ nguyên)
         if (request.getName() != null && !request.getName().isEmpty()) {
             String keyword = "%" + request.getName().toLowerCase() + "%";
             spec = spec.and((root, query, cb) -> cb.or(
@@ -143,12 +150,13 @@ public class ProductSkuServiceImpl implements ProductSkuService {
                     return cb.between(root.get("price"), request.getMinPrice(), request.getMaxPrice());
                 } else if (request.getMinPrice() != null) {
                     return cb.greaterThanOrEqualTo(root.get("price"), request.getMinPrice());
-                } else { // MaxPrice != null
+                } else {
                     return cb.lessThanOrEqualTo(root.get("price"), request.getMaxPrice());
                 }
             });
         }
 
+        // 3. Phân trang & Query
         int page = (request.getPage() != null && request.getPage() >= 0) ? request.getPage() : 0;
         int size = (request.getSize() != null && request.getSize() > 0) ? request.getSize() : 12;
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
@@ -156,15 +164,15 @@ public class ProductSkuServiceImpl implements ProductSkuService {
         Page<ProductSKU> skuPage = productSkuRepository.findAll(spec, pageable);
 
         return skuPage.map(sku -> {
-            Product parent = sku.getProduct();
+            Product parent = sku.getProduct(); // Lấy từ Cache L1
 
-            // ghép tên: "Lenovo LOQ 15IRX9" + " (i5 / RTX 3050)"
+            // Logic ghép tên
             String displayName = parent.getName();
             if (sku.getOptionName() != null && !sku.getOptionName().isEmpty()) {
                 displayName += " (" + sku.getOptionName() + ")";
             }
 
-            // lấy ảnh biến thể, nếu không có thì lấy ảnh cha
+            // Logic fallback ảnh
             String displayImage = (sku.getSkuImage() != null && !sku.getSkuImage().isEmpty())
                     ? sku.getSkuImage()
                     : parent.getImageUrl();
@@ -176,7 +184,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
                     .slug(parent.getSlug())
                     .price(sku.getPrice())
                     .imageUrl(displayImage)
-                    .isStockAvailable(true)   // TODO: Tích hợp check kho sau
+                    .isStockAvailable(true)
                     .build();
         });
     }

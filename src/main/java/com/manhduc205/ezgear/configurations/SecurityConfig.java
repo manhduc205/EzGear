@@ -75,6 +75,7 @@ public class SecurityConfig {
                         .requestMatchers("/shipping/**").permitAll()
                         .requestMatchers("/customer-addresses/**").permitAll()
                         .requestMatchers("/payment/**").permitAll()
+                        .requestMatchers("/products/**").permitAll()
                         .requestMatchers("/checkout/**").permitAll()
                         .requestMatchers("/voucher/apply").permitAll()
                         .requestMatchers("/ghn-locations/**").permitAll()
