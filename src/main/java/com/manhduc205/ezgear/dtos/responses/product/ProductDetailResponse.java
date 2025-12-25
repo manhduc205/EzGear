@@ -10,10 +10,13 @@ public class ProductDetailResponse {
     private Long id;
     private String name;
     private String slug;
+    private String imageUrl;
     private String seriesCode;
     private String shortDesc;
     private Double ratingAverage;
     private Integer reviewCount;
+    private String brandName;
+    private String categoryName;
     // List biến thể
     private List<ProductSkuDetailResponse> skus;
     // Album ảnh slide

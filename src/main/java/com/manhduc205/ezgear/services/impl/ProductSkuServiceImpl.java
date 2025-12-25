@@ -2,8 +2,11 @@ package com.manhduc205.ezgear.services.impl;
 
 import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.ProductSkuDTO;
+import com.manhduc205.ezgear.dtos.request.AdminProductSkuSearchRequest;
 import com.manhduc205.ezgear.dtos.request.ProductSkuSearchRequest;
+import com.manhduc205.ezgear.dtos.responses.product.AdminProductSkuResponse;
 import com.manhduc205.ezgear.dtos.responses.product.ProductThumbnailResponse;
+import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductSKU;
 import com.manhduc205.ezgear.repositories.ProductRepository;
@@ -11,6 +14,7 @@ import com.manhduc205.ezgear.repositories.ProductSkuRepository;
 import com.manhduc205.ezgear.services.ProductSkuService;
 import jakarta.persistence.EntityExistsException;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +26,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -188,13 +193,99 @@ public class ProductSkuServiceImpl implements ProductSkuService {
                     .build();
         });
     }
+    @Override
+    public Page<AdminProductSkuResponse> searchProductSkusForAdmin(AdminProductSkuSearchRequest request) {
+        Specification<ProductSKU> spec = (root, query, cb) -> {
+            Join<ProductSKU, Product> productJoin = root.join("product", JoinType.LEFT);
+            List<Predicate> predicates = new ArrayList<>();
 
+            if (request.getKeyword() != null && !request.getKeyword().isEmpty()) {
+                String keyword = "%" + request.getKeyword().toLowerCase() + "%";
+                Predicate nameSku = cb.like(cb.lower(root.get("name")), keyword);
+                Predicate codeSku = cb.like(cb.lower(root.get("sku")), keyword);
+                Predicate nameProduct = cb.like(cb.lower(productJoin.get("name")), keyword);
+
+                predicates.add(cb.or(nameSku, codeSku, nameProduct));
+            }
+
+            if (request.getCategoryId() != null) {
+                predicates.add(cb.equal(productJoin.get("category").get("id"), request.getCategoryId()));
+            }
+
+            if (request.getBrandId() != null) {
+                predicates.add(cb.equal(productJoin.get("brand").get("id"), request.getBrandId()));
+            }
+            if (request.getIsActive() != null) {
+                predicates.add(cb.equal(root.get("isActive"), request.getIsActive()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Sort sort = Sort.by("createdAt").descending();
+        if (request.getSortBy() != null && !request.getSortBy().isEmpty()) {
+            if ("price".equals(request.getSortBy())) {
+                sort = "asc".equals(request.getSortDir()) ? Sort.by("price").ascending() : Sort.by("price").descending();
+            } else if ("name".equals(request.getSortBy())) {
+                sort = "asc".equals(request.getSortDir()) ? Sort.by("name").ascending() : Sort.by("name").descending();
+            }
+        }
+
+        int page = (request.getPage() != null && request.getPage() >= 0) ? request.getPage() : 0;
+        int size = (request.getSize() != null && request.getSize() > 0) ? request.getSize() : 10;
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<ProductSKU> pageResult = productSkuRepository.findAll(spec, pageable);
+
+        return pageResult.map(sku -> {
+            Product product = sku.getProduct();
+            String finalImage = (sku.getSkuImage() != null && !sku.getSkuImage().isEmpty())
+                    ? sku.getSkuImage()
+                    : product.getImageUrl();
+
+            return AdminProductSkuResponse.builder()
+                    .id(sku.getId())
+                    .skuCode(sku.getSku())
+                    .productName(product.getName())
+                    .skuName(sku.getName())
+                    .categoryName(product.getCategory() != null ? product.getCategory().getName() : "N/A")
+                    .brandName(product.getBrand() != null ? product.getBrand().getName() : "N/A")
+                    .imageUrl(finalImage)
+                    .price(sku.getPrice())
+                    .warrantyMonths(product.getWarrantyMonths())
+                    .isActive(sku.getIsActive())
+                    .createdAt(sku.getCreatedAt())
+                    .updatedAt(sku.getUpdatedAt())
+                    .build();
+        });
+    }
     @Override
     public ProductSKU getById(Long id) {
         return productSkuRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(
                         Translator.toLocale("error.product_sku.not_found_by_id", id)
                 ));
+    }
+    @Override
+    public ProductSkuDTO getSkuDetail(Long id) {
+        ProductSKU sku = productSkuRepository.findById(id).orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.sku.not_found")));
+
+        ProductSkuDTO dto = new ProductSkuDTO();
+
+        dto.setProductId(sku.getProduct().getId());
+        dto.setSku(sku.getSku());
+        dto.setName(sku.getName());
+        dto.setOptionName(sku.getOptionName());
+        dto.setSkuImage(sku.getSkuImage());
+        dto.setPrice(sku.getPrice());
+        dto.setIsActive(sku.getIsActive());
+        dto.setBarcode(sku.getBarcode());
+        dto.setWeightGram(sku.getWeightGram());
+        dto.setLengthCm(sku.getLengthCm());
+        dto.setWidthCm(sku.getWidthCm());
+        dto.setHeightCm(sku.getHeightCm());
+
+        return dto;
     }
 
 }

@@ -12,7 +12,7 @@ public class ProductDTO {
 
     private Long categoryId;
     private Long brandId;
-
+    private String seriesCode;
     private String name;
     private String slug;
     private String shortDesc;
