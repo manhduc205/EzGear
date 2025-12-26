@@ -3,20 +3,28 @@ package com.manhduc205.ezgear.services.impl;
 import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
-import com.manhduc205.ezgear.dtos.responses.product.ProductDetailResponse;
-import com.manhduc205.ezgear.dtos.responses.product.ProductSiblingResponse;
-import com.manhduc205.ezgear.dtos.responses.product.ProductSkuDetailResponse;
+import com.manhduc205.ezgear.dtos.request.AdminProductSearchRequest; // 🟢 Import DTO Request
+import com.manhduc205.ezgear.dtos.responses.product.*; // 🟢 Import DTO Response
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.mapper.ProductMapper;
 import com.manhduc205.ezgear.models.*;
 import com.manhduc205.ezgear.repositories.*;
 import com.manhduc205.ezgear.services.CategoryService;
+import com.manhduc205.ezgear.services.CloudinaryService;
 import com.manhduc205.ezgear.services.ProductService;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Predicate; // 🟢 Cần cho Specification
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page; // 🟢 Cần cho phân trang
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +38,59 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final ProductImageRepository productImageRepository;
     private final ProductSkuRepository productSkuRepository;
+    private final CloudinaryService cloudinaryService;
+
+    @Override
+    public Page<AdminProductResponse> searchProductsForAdmin(AdminProductSearchRequest request) {
+        Specification<Product> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (request.getKeyword() != null && !request.getKeyword().isEmpty()) {
+                String keyword = "%" + request.getKeyword().toLowerCase() + "%";
+                Predicate nameLike = cb.like(cb.lower(root.get("name")), keyword);
+                Predicate seriesLike = cb.like(cb.lower(root.get("seriesCode")), keyword);
+                predicates.add(cb.or(nameLike, seriesLike));
+            }
+
+            if (request.getCategoryId() != null) {
+                predicates.add(cb.equal(root.get("category").get("id"), request.getCategoryId()));
+            }
+
+            if (request.getBrandId() != null) {
+                predicates.add(cb.equal(root.get("brand").get("id"), request.getBrandId()));
+            }
+
+            if (request.getIsActive() != null) {
+                predicates.add(cb.equal(root.get("isActive"), request.getIsActive()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        // Phân trang
+        int page = (request.getPage() != null) ? request.getPage() : 0;
+        int size = (request.getSize() != null) ? request.getSize() : 10;
+        Sort sort = Sort.by("id").descending(); // Mặc định mới nhất lên đầu
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+
+        // Map sang DTO
+        return productPage.map(product -> AdminProductResponse.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .seriesCode(product.getSeriesCode())
+                .imageUrl(product.getImageUrl())
+                .categoryName(product.getCategory() != null ? product.getCategory().getName() : "N/A")
+                .brandName(product.getBrand() != null ? product.getBrand().getName() : "N/A")
+                .isActive(product.getIsActive())
+                .createdAt(product.getCreatedAt())
+                .updatedAt(product.getUpdatedAt())
+                .build());
+    }
+
+
     @Override
     public Product getProductById(Long id) throws DataNotFoundException {
         return productRepository
@@ -38,36 +99,71 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @Transactional
-    public Product createProduct(ProductDTO productDTO) throws DataNotFoundException {
-        Category existsCategory = categoryRepository
-                .findById(productDTO.getCategoryId())
+    @Transactional(rollbackFor = Exception.class) // Rollback nếu upload lỗi
+    public Product createProduct(ProductDTO productDTO, List<MultipartFile> files) throws Exception {
+        Category existsCategory = categoryRepository.findById(productDTO.getCategoryId())
                 .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.category.not_found")));
-
-        Brand existBrand = brandRepository
-                .findById(productDTO.getBrandId())
+        Brand existBrand = brandRepository.findById(productDTO.getBrandId())
                 .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.brand.not_found")));
 
         Product product = productMapper.toProduct(productDTO);
-
         product.setCategory(existsCategory);
         product.setBrand(existBrand);
-
         product.setSeriesCode(productDTO.getSeriesCode());
-        if(productDTO.getSlug() != null) {
-            product.setSlug(productDTO.getSlug());
+        if(productDTO.getSlug() != null) product.setSlug(productDTO.getSlug());
+        if(productDTO.getIsActive() == null) product.setIsActive(true);
+
+        // XỬ LÝ ẢNH CHÍNH (Lấy file đầu tiên)
+        if (files != null && !files.isEmpty()) {
+            MultipartFile mainFile = files.get(0);
+            if(mainFile.getSize() > 10 * 1024 * 1024) throw new IllegalArgumentException("Main image too large");
+
+            String mainImageUrl = cloudinaryService.uploadFile(mainFile);
+            product.setImageUrl(mainImageUrl);
+        } else if (productDTO.getImageUrl() != null) {
+            product.setImageUrl(productDTO.getImageUrl());
         }
 
-        if(productDTO.getIsActive() == null) {
-            product.setIsActive(true);
+        Product savedProduct = productRepository.save(product);
+
+        // XỬ LÝ ẢNH PHỤ (Lấy từ file thứ 2 trở đi)
+        if (files != null && files.size() > 1) {
+            List<ProductImage> productImages = new ArrayList<>();
+
+            for (int i = 1; i < files.size(); i++) {
+                MultipartFile file = files.get(i);
+                if(file.getSize() == 0) continue;
+                if(file.getSize() > 10 * 1024 * 1024) throw new IllegalArgumentException("Gallery image too large");
+
+                // Upload Cloudinary
+                String galleryUrl = cloudinaryService.uploadFile(file);
+
+                // Tạo Entity ProductImage
+                ProductImage productImage = ProductImage.builder()
+                        .product(savedProduct)
+                        .imageUrl(galleryUrl)
+                        .build();
+
+                productImages.add(productImage);
+            }
+
+            // Validate số lượng ảnh (nếu cần)
+            if(productImages.size() > ProductImage.MAXIMUM_IMAGES_PER_PRODUCT) {
+                throw new IllegalArgumentException("Too many images");
+            }
+
+            // Lưu tất cả ảnh phụ
+            if(!productImages.isEmpty()) {
+                productImageRepository.saveAll(productImages);
+            }
         }
 
-        return productRepository.save(product);
+        return savedProduct;
     }
 
     @Override
     @Transactional
-    public Product updateProduct(Long id, ProductDTO productDTO) throws DataNotFoundException {
+    public Product updateProduct(Long id, ProductDTO productDTO, MultipartFile imageFile) throws IOException {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found_by_id", id)));
 
@@ -81,12 +177,22 @@ public class ProductServiceImpl implements ProductService {
         existingProduct.setName(productDTO.getName());
         existingProduct.setSlug(productDTO.getSlug());
         existingProduct.setShortDesc(productDTO.getShortDesc());
-        existingProduct.setImageUrl(productDTO.getImageUrl());
         existingProduct.setWarrantyMonths(productDTO.getWarrantyMonths());
         existingProduct.setIsActive(productDTO.getIsActive());
         existingProduct.setCategory(category);
         existingProduct.setBrand(brand);
         existingProduct.setSeriesCode(productDTO.getSeriesCode());
+
+        // Logic cập nhật ảnh: Ưu tiên File Upload > URL Text > Giữ nguyên
+        if (imageFile != null && !imageFile.isEmpty()) {
+            if(imageFile.getSize() > 10 * 1024 * 1024) {
+                throw new IllegalArgumentException("File size too large");
+            }
+            String newImageUrl = cloudinaryService.uploadFile(imageFile);
+            existingProduct.setImageUrl(newImageUrl);
+        } else if (productDTO.getImageUrl() != null && !productDTO.getImageUrl().isEmpty()) {
+            existingProduct.setImageUrl(productDTO.getImageUrl());
+        }
 
         return productRepository.save(existingProduct);
     }
@@ -109,7 +215,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductImage createProductImage(Long productId , ProductImageDTO productImageDTO) throws Exception {
+    public ProductImage createProductImage(Long productId , ProductImageDTO productImageDTO)  {
         Product existsProduct = productRepository.findById(productId)
                 .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found_by_id", productId)));
         ProductImage productImage = ProductImage
@@ -133,6 +239,21 @@ public class ProductServiceImpl implements ProductService {
         return productImageRepository.findById(imageId)
                 .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product_image.not_found_by_id", imageId)));
 
+    }
+    @Override
+    public List<ProductImage> getImagesByProductId(Long productId) {
+        // Hàm này lấy toàn bộ ảnh phụ (Gallery)
+        return productImageRepository.findByProductId(productId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteProductImage(Long imageId) throws Exception {
+        ProductImage productImage = productImageRepository.findById(imageId)
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product_image.not_found_by_id", imageId)));
+
+        cloudinaryService.deleteFile(productImage.getImageUrl());
+        productImageRepository.delete(productImage);
     }
 
     @Override
@@ -208,5 +329,46 @@ public class ProductServiceImpl implements ProductService {
                     .isCurrent(false)
                     .build();
         }).toList();
+    }
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public List<ProductImage> uploadImages(Long productId, List<MultipartFile> files) throws Exception {
+        Product existsProduct = getProductById(productId);
+        files = (files == null) ? new ArrayList<>() : files;
+
+        // 1. Check số lượng ảnh tối đa
+        int currentImages = existsProduct.getProductImages().size();
+        if (currentImages + files.size() > ProductImage.MAXIMUM_IMAGES_PER_PRODUCT) {
+            throw new IllegalArgumentException("You can only upload max " + ProductImage.MAXIMUM_IMAGES_PER_PRODUCT + " images");
+        }
+
+        List<ProductImage> savedImages = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            if (file.getSize() == 0) continue;
+
+            // 2. Validate Kích thước (>10MB)
+            if (file.getSize() > 10 * 1024 * 1024) {
+                throw new IllegalArgumentException("File is too large! Maximum size is 10MB");
+            }
+
+            // 3. Validate Loại file (Phải là ảnh)
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                throw new IllegalArgumentException("File must be an image");
+            }
+
+            // 4. Upload Cloudinary & Lưu Database
+            String imageUrl = cloudinaryService.uploadFile(file);
+
+            ProductImage productImage = ProductImage.builder()
+                    .product(existsProduct)
+                    .imageUrl(imageUrl)
+                    .build();
+
+            savedImages.add(productImageRepository.save(productImage));
+        }
+
+        return savedImages;
     }
 }

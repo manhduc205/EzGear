@@ -117,7 +117,6 @@ public class ProductSkuServiceImpl implements ProductSkuService {
             return cb.and(skuActive, parentActive);
         };
 
-        // 2. Các bộ lọc tìm kiếm (Giữ nguyên)
         if (request.getName() != null && !request.getName().isEmpty()) {
             String keyword = "%" + request.getName().toLowerCase() + "%";
             spec = spec.and((root, query, cb) -> cb.or(
@@ -161,7 +160,6 @@ public class ProductSkuServiceImpl implements ProductSkuService {
             });
         }
 
-        // 3. Phân trang & Query
         int page = (request.getPage() != null && request.getPage() >= 0) ? request.getPage() : 0;
         int size = (request.getSize() != null && request.getSize() > 0) ? request.getSize() : 12;
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
@@ -246,7 +244,6 @@ public class ProductSkuServiceImpl implements ProductSkuService {
             return AdminProductSkuResponse.builder()
                     .id(sku.getId())
                     .skuCode(sku.getSku())
-                    .productName(product.getName())
                     .skuName(sku.getName())
                     .categoryName(product.getCategory() != null ? product.getCategory().getName() : "N/A")
                     .brandName(product.getBrand() != null ? product.getBrand().getName() : "N/A")
