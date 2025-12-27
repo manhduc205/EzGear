@@ -92,15 +92,16 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
-    public Product getProductById(Long id) throws DataNotFoundException {
-        return productRepository
+    public AdminProductDetailResponse getProductById(Long id) throws DataNotFoundException {
+        Product product = productRepository
                 .findById(id)
                 .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found")));
+        return productMapper.toDetailResponse(product);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class) // Rollback nếu upload lỗi
-    public Product createProduct(ProductDTO productDTO, List<MultipartFile> files) throws Exception {
+    public AdminProductDetailResponse createProduct(ProductDTO productDTO, List<MultipartFile> files) throws Exception {
         Category existsCategory = categoryRepository.findById(productDTO.getCategoryId())
                 .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.category.not_found")));
         Brand existBrand = brandRepository.findById(productDTO.getBrandId())
@@ -116,7 +117,7 @@ public class ProductServiceImpl implements ProductService {
         // XỬ LÝ ẢNH CHÍNH (Lấy file đầu tiên)
         if (files != null && !files.isEmpty()) {
             MultipartFile mainFile = files.get(0);
-            if(mainFile.getSize() > 10 * 1024 * 1024) throw new IllegalArgumentException("Main image too large");
+            if(mainFile.getSize() > 10 * 1024 * 1024) throw new IllegalArgumentException(Translator.toLocale("error.product.main_image_too_large"));
 
             String mainImageUrl = cloudinaryService.uploadFile(mainFile);
             product.setImageUrl(mainImageUrl);
@@ -133,7 +134,7 @@ public class ProductServiceImpl implements ProductService {
             for (int i = 1; i < files.size(); i++) {
                 MultipartFile file = files.get(i);
                 if(file.getSize() == 0) continue;
-                if(file.getSize() > 10 * 1024 * 1024) throw new IllegalArgumentException("Gallery image too large");
+                if(file.getSize() > 10 * 1024 * 1024) throw new IllegalArgumentException(Translator.toLocale("error.product.gallery_image_too_large"));
 
                 // Upload Cloudinary
                 String galleryUrl = cloudinaryService.uploadFile(file);
@@ -149,7 +150,7 @@ public class ProductServiceImpl implements ProductService {
 
             // Validate số lượng ảnh (nếu cần)
             if(productImages.size() > ProductImage.MAXIMUM_IMAGES_PER_PRODUCT) {
-                throw new IllegalArgumentException("Too many images");
+                throw new IllegalArgumentException(Translator.toLocale("error.product.too_many_images"));
             }
 
             // Lưu tất cả ảnh phụ
@@ -158,12 +159,12 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        return savedProduct;
+        return productMapper.toDetailResponse(savedProduct);
     }
 
     @Override
     @Transactional
-    public Product updateProduct(Long id, ProductDTO productDTO, MultipartFile imageFile) throws IOException {
+    public AdminProductDetailResponse updateProduct(Long id, ProductDTO productDTO, MultipartFile imageFile) throws IOException {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found_by_id", id)));
 
@@ -194,7 +195,8 @@ public class ProductServiceImpl implements ProductService {
             existingProduct.setImageUrl(productDTO.getImageUrl());
         }
 
-        return productRepository.save(existingProduct);
+        Product updatedProduct = productRepository.save(existingProduct);
+        return productMapper.toDetailResponse(updatedProduct);
     }
 
     @Override
@@ -333,13 +335,14 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public List<ProductImage> uploadImages(Long productId, List<MultipartFile> files) throws Exception {
-        Product existsProduct = getProductById(productId);
+        Product existsProduct = productRepository.findById(productId)
+                .orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.product.not_found_by_id", productId)));
         files = (files == null) ? new ArrayList<>() : files;
 
         // 1. Check số lượng ảnh tối đa
         int currentImages = existsProduct.getProductImages().size();
         if (currentImages + files.size() > ProductImage.MAXIMUM_IMAGES_PER_PRODUCT) {
-            throw new IllegalArgumentException("You can only upload max " + ProductImage.MAXIMUM_IMAGES_PER_PRODUCT + " images");
+            throw new IllegalArgumentException(Translator.toLocale("error.product.upload_limit_exceeded", ProductImage.MAXIMUM_IMAGES_PER_PRODUCT));
         }
 
         List<ProductImage> savedImages = new ArrayList<>();
@@ -349,13 +352,13 @@ public class ProductServiceImpl implements ProductService {
 
             // 2. Validate Kích thước (>10MB)
             if (file.getSize() > 10 * 1024 * 1024) {
-                throw new IllegalArgumentException("File is too large! Maximum size is 10MB");
+                throw new IllegalArgumentException(Translator.toLocale("error.product.file_size_too_large_10mb"));
             }
 
             // 3. Validate Loại file (Phải là ảnh)
             String contentType = file.getContentType();
             if (contentType == null || !contentType.startsWith("image/")) {
-                throw new IllegalArgumentException("File must be an image");
+                throw new IllegalArgumentException(Translator.toLocale("error.product.file_must_be_image"));
             }
 
             // 4. Upload Cloudinary & Lưu Database

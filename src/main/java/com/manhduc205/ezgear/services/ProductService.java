@@ -3,6 +3,7 @@ package com.manhduc205.ezgear.services;
 import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
 import com.manhduc205.ezgear.dtos.request.AdminProductSearchRequest;
+import com.manhduc205.ezgear.dtos.responses.product.AdminProductDetailResponse;
 import com.manhduc205.ezgear.dtos.responses.product.AdminProductResponse;
 import com.manhduc205.ezgear.dtos.responses.product.ProductDetailResponse;
 import com.manhduc205.ezgear.dtos.responses.product.ProductSiblingResponse;
@@ -17,9 +18,9 @@ import java.util.List;
 
 @Service
 public interface ProductService {
-    Product getProductById( Long id) throws Exception;
-    Product createProduct(ProductDTO productDTO, List<MultipartFile> files) throws Exception;
-    Product updateProduct(Long id ,ProductDTO productDTO, MultipartFile imageFile) throws IOException;
+    AdminProductDetailResponse getProductById( Long id) throws Exception;
+    AdminProductDetailResponse createProduct(ProductDTO productDTO, List<MultipartFile> files) throws Exception;
+    AdminProductDetailResponse updateProduct(Long id ,ProductDTO productDTO, MultipartFile imageFile) throws IOException;
     void deleteProduct(Long id) throws Exception;
     List<ProductImage> uploadImages(Long productId, List<MultipartFile> files) throws Exception;
     boolean existsProduct( String productName) throws Exception;

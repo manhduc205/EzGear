@@ -5,6 +5,7 @@ import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
 import com.manhduc205.ezgear.dtos.request.AdminProductSearchRequest;
 import com.manhduc205.ezgear.dtos.responses.ApiResponse;
+import com.manhduc205.ezgear.dtos.responses.product.AdminProductDetailResponse;
 import com.manhduc205.ezgear.dtos.responses.product.AdminProductResponse;
 import com.manhduc205.ezgear.dtos.responses.product.ProductDetailResponse;
 import com.manhduc205.ezgear.dtos.responses.product.ProductSiblingResponse;
@@ -54,18 +55,10 @@ public class ProductController {
     @PostMapping(value = "", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createProduct(
             @Valid @ModelAttribute ProductDTO productDTO,
-            BindingResult bindingResult,
             @RequestParam(value = "files", required = false) List<MultipartFile> files
     ) {
         try {
-            if (bindingResult.hasErrors()) {
-                List<String> errorMessage = bindingResult.getFieldErrors().stream().map(FieldError::getDefaultMessage).toList();
-                return ResponseEntity.badRequest().body(ApiResponse.builder()
-                        .message("Validation failed")
-                        .errors(errorMessage)
-                        .build());
-            }
-            Product newProduct = productService.createProduct(productDTO, files);
+            AdminProductDetailResponse newProduct = productService.createProduct(productDTO, files);
             return ResponseEntity.ok(ApiResponse.builder()
                     .success(true)
                     .message("Created product successfully")
@@ -87,18 +80,12 @@ public class ProductController {
             @RequestParam(value = "file", required = false) MultipartFile file
     ) {
         try {
-            if (bindingResult.hasErrors()) {
-                List<String> errorMessage = bindingResult.getFieldErrors().stream().map(FieldError::getDefaultMessage).toList();
-                return ResponseEntity.badRequest().body(ApiResponse.builder()
-                        .message("Validation failed")
-                        .errors(errorMessage)
-                        .build());
-            }
-            Product updateProduct = productService.updateProduct(id, productDTO, file);
+            AdminProductDetailResponse updatedProduct = productService.updateProduct(id, productDTO, file);
             return ResponseEntity.ok(ApiResponse.builder()
                     .success(true)
                     .message("Update product successfully")
-                    .payload(updateProduct).build());
+                    .payload(updatedProduct)
+                    .build());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.builder()
                     .success(false)
@@ -220,7 +207,7 @@ public class ProductController {
 //                    .build();
 //
 //            try {
-//                productService.createProduct(productDTO);
+//                productService.createProduct(productDTO, null);
 //            }catch (Exception e){
 //                return ResponseEntity.badRequest().body(e.getMessage());
 //            }
@@ -247,5 +234,21 @@ public class ProductController {
                 .message("Get related products success")
                 .payload(response)
                 .build());
+    }
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
+    @GetMapping("/admin/{id}")
+    public ResponseEntity<?> getProductById(@PathVariable("id") Long id) {
+        try {
+            // Service trả về AdminProductDetailResponse
+            AdminProductDetailResponse response = productService.getProductById(id);
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Get product successfully")
+                    .payload(response)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder().success(false).message(e.getMessage()).build());
+        }
     }
 }
