@@ -25,12 +25,12 @@ public class ProductSkuController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PostMapping("")
     public ResponseEntity<?> createProductSku (@Valid @RequestBody ProductSkuDTO productSkuDTO, BindingResult result) {
-        ProductSKU productSKU = productSkuService.createProductSku(productSkuDTO);
+        ProductSkuDTO response = productSkuService.createProductSku(productSkuDTO);
         return ResponseEntity.ok(
                 ApiResponse.builder()
                         .success(true)
                         .message("Product sku created successfully")
-                        .payload(productSKU)
+                        .payload(response)
                         .build()
         );
     }
@@ -38,12 +38,12 @@ public class ProductSkuController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PostMapping("/{id}")
     public ResponseEntity<?> updateProductSku (@Valid @RequestBody ProductSkuDTO productSkuDTO, @PathVariable Long id){
-        ProductSKU productSKU = productSkuService.updateProductSku(id,productSkuDTO);
+        ProductSkuDTO response = productSkuService.updateProductSku(id,productSkuDTO);
         return ResponseEntity.ok(
                 ApiResponse.builder()
                         .success(true)
                         .message("Product sku updated successfully")
-                        .payload(productSKU)
+                        .payload(response)
                         .build()
         );
     }

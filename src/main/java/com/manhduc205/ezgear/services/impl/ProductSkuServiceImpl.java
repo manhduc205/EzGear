@@ -36,7 +36,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     private final ProductRepository productRepository;
 
     @Override
-    public ProductSKU createProductSku(ProductSkuDTO productSkuDTO) {
+    public ProductSkuDTO createProductSku(ProductSkuDTO productSkuDTO) {
         Product product = productRepository.findById(productSkuDTO.getProductId())
                 .orElseThrow(() -> new EntityNotFoundException(
                         Translator.toLocale("error.product.not_found_by_id", productSkuDTO.getProductId())
@@ -61,11 +61,12 @@ public class ProductSkuServiceImpl implements ProductSkuService {
                 .heightCm(productSkuDTO.getHeightCm())
                 .isActive(productSkuDTO.getIsActive())
                 .build();
-        return productSkuRepository.save(productSKU);
+        ProductSKU saved = productSkuRepository.save(productSKU);
+        return mapToDto(saved);
     }
 
     @Override
-    public ProductSKU updateProductSku(Long id, ProductSkuDTO productSkuDTO) {
+    public ProductSkuDTO updateProductSku(Long id, ProductSkuDTO productSkuDTO) {
         ProductSKU productSKU = productSkuRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(
                         Translator.toLocale("error.product_sku.not_found_by_id", id)
@@ -91,7 +92,8 @@ public class ProductSkuServiceImpl implements ProductSkuService {
         if (productSkuDTO.getIsActive() != null) {
             productSKU.setIsActive(productSkuDTO.getIsActive());
         }
-        return productSkuRepository.save(productSKU);
+        ProductSKU saved = productSkuRepository.save(productSKU);
+        return mapToDto(saved);
     }
     @Override
     public void deleteProductSku(Long id) {
@@ -267,8 +269,11 @@ public class ProductSkuServiceImpl implements ProductSkuService {
     public ProductSkuDTO getSkuDetail(Long id) {
         ProductSKU sku = productSkuRepository.findById(id).orElseThrow(() -> new DataNotFoundException(Translator.toLocale("error.sku.not_found")));
 
-        ProductSkuDTO dto = new ProductSkuDTO();
+        return mapToDto(sku);
+    }
 
+    private ProductSkuDTO mapToDto(ProductSKU sku) {
+        ProductSkuDTO dto = new ProductSkuDTO();
         dto.setProductId(sku.getProduct().getId());
         dto.setSku(sku.getSku());
         dto.setName(sku.getName());

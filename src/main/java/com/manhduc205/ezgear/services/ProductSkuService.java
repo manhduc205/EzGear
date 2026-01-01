@@ -13,8 +13,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public interface ProductSkuService {
-    ProductSKU createProductSku(ProductSkuDTO productSKUDTO);
-    ProductSKU updateProductSku(Long id,ProductSkuDTO productSKUDTO);
+    ProductSkuDTO createProductSku(ProductSkuDTO productSKUDTO);
+    ProductSkuDTO updateProductSku(Long id,ProductSkuDTO productSKUDTO);
     void deleteProductSku(Long id);
     Page<ProductThumbnailResponse> searchProductSkus(ProductSkuSearchRequest request);
     Page<AdminProductSkuResponse> searchProductSkusForAdmin(AdminProductSkuSearchRequest request);
