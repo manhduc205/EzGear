@@ -13,5 +13,6 @@ public class ReviewResponse {
     private String comment;
     private List<String> imageUrls;
     private String shopResponse;
+    private LocalDateTime shopResponseAt;
     private LocalDateTime createdAt;
 }
