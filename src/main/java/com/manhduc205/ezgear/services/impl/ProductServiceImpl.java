@@ -5,6 +5,7 @@ import com.manhduc205.ezgear.dtos.ProductDTO;
 import com.manhduc205.ezgear.dtos.ProductImageDTO;
 import com.manhduc205.ezgear.dtos.request.AdminProductSearchRequest; // 🟢 Import DTO Request
 import com.manhduc205.ezgear.dtos.responses.product.*; // 🟢 Import DTO Response
+import com.manhduc205.ezgear.elasticsearch.services.ProductEsService;
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.mapper.ProductMapper;
 import com.manhduc205.ezgear.models.*;
@@ -39,6 +40,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductImageRepository productImageRepository;
     private final ProductSkuRepository productSkuRepository;
     private final CloudinaryService cloudinaryService;
+    private final ProductEsService productEsService;
 
     @Override
     public Page<AdminProductResponse> searchProductsForAdmin(AdminProductSearchRequest request) {
@@ -158,7 +160,7 @@ public class ProductServiceImpl implements ProductService {
                 productImageRepository.saveAll(productImages);
             }
         }
-
+        productEsService.syncProductToEs(savedProduct); // đồng bộ sang ES
         return productMapper.toDetailResponse(savedProduct);
     }
 
@@ -196,6 +198,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         Product updatedProduct = productRepository.save(existingProduct);
+        productEsService.syncProductToEs(updatedProduct); // đồng bộ sang ES
         return productMapper.toDetailResponse(updatedProduct);
     }
 
@@ -207,7 +210,7 @@ public class ProductServiceImpl implements ProductService {
 
         existingProduct.setIsActive(false);
         productRepository.save(existingProduct);
-
+        productEsService.deleteFromEs(id);
         productSkuRepository.softDeleteByProductId(id);
     }
 

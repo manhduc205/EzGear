@@ -6,6 +6,7 @@ import com.manhduc205.ezgear.dtos.request.AdminProductSkuSearchRequest;
 import com.manhduc205.ezgear.dtos.request.ProductSkuSearchRequest;
 import com.manhduc205.ezgear.dtos.responses.product.AdminProductSkuResponse;
 import com.manhduc205.ezgear.dtos.responses.product.ProductThumbnailResponse;
+import com.manhduc205.ezgear.elasticsearch.services.ProductEsService;
 import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductSKU;
@@ -34,6 +35,7 @@ import java.util.List;
 public class ProductSkuServiceImpl implements ProductSkuService {
     private final ProductSkuRepository productSkuRepository;
     private final ProductRepository productRepository;
+    private final ProductEsService productEsService;
 
     @Override
     public ProductSkuDTO createProductSku(ProductSkuDTO productSkuDTO) {
@@ -62,6 +64,8 @@ public class ProductSkuServiceImpl implements ProductSkuService {
                 .isActive(productSkuDTO.getIsActive())
                 .build();
         ProductSKU saved = productSkuRepository.save(productSKU);
+        // Vì thêm SKU mới có thể làm thay đổi "Giá thấp nhất" của sản phẩm
+        productEsService.syncProductToEs(saved.getProduct());
         return mapToDto(saved);
     }
 
@@ -93,6 +97,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
             productSKU.setIsActive(productSkuDTO.getIsActive());
         }
         ProductSKU saved = productSkuRepository.save(productSKU);
+        productEsService.syncProductToEs(saved.getProduct());
         return mapToDto(saved);
     }
     @Override
@@ -103,6 +108,7 @@ public class ProductSkuServiceImpl implements ProductSkuService {
                 ));
         sku.setIsActive(false);  // soft delete tránh lỗi nếu SKU từng xh trong đơn hàng
         productSkuRepository.save(sku);
+        productEsService.syncProductToEs(sku.getProduct());
     }
 
     @Override

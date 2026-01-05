@@ -1,0 +1,15 @@
+{
+  "index": {
+    "analysis": {
+      "analyzer": {
+        "icu_analyzer": {
+          "tokenizer": "icu_tokenizer",
+          "filter": [
+            "icu_folding",
+            "icu_normalizer"
+          ]
+        }
+      }
+    }
+  }
+}

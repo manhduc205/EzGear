@@ -23,6 +23,33 @@ services:
       - "6379:6379"
     networks:
       - bdc-network
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.5
+    container_name: ezgear-es
+    environment:
+      - node.name=es01
+      - cluster.name=ezgear-cluster
+      - discovery.type=single-node # Chạy chế độ 1 node (Dev)
+      - xpack.security.enabled=false # Tắt bảo mật để dễ kết nối lúc đầu
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" # Giới hạn RAM (ES ăn RAM rất nhiều)
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./data/elasticsearch:/usr/share/elasticsearch/data # Lưu dữ liệu bền vững
+    networks:
+      - bdc-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.18.5
+    container_name: ezgear-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200 # Trỏ vào tên service ở trên
+    depends_on:
+      - elasticsearch
+    networks:
+      - bdc-network
 
 networks:
   bdc-network:

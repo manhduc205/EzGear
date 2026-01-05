@@ -9,8 +9,11 @@ import com.manhduc205.ezgear.dtos.responses.product.AdminProductDetailResponse;
 import com.manhduc205.ezgear.dtos.responses.product.AdminProductResponse;
 import com.manhduc205.ezgear.dtos.responses.product.ProductDetailResponse;
 import com.manhduc205.ezgear.dtos.responses.product.ProductSiblingResponse;
+import com.manhduc205.ezgear.elasticsearch.documents.ProductDocument;
+import com.manhduc205.ezgear.elasticsearch.services.ProductEsService;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductImage;
+import com.manhduc205.ezgear.repositories.ProductRepository;
 import com.manhduc205.ezgear.services.CloudinaryService;
 import com.manhduc205.ezgear.services.ProductService;
 import jakarta.validation.Valid;
@@ -32,7 +35,54 @@ import java.util.*;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductEsService productEsService; // 🟢 1. Inject Service ES
+    private final ProductRepository productRepository;
 
+    // tìm kiếm bên người dùng
+    @GetMapping("/search/es")
+    public ResponseEntity<?> searchProductsEs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "relevance") String sortBy, // relevance, newest, price, rating
+            @RequestParam(defaultValue = "desc") String order,       // asc, desc
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        try {
+            Page<ProductDocument> result = productEsService.searchProducts(keyword, sortBy, order, page, limit);
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Search success")
+                    .payload(result)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .build());
+        }
+    }
+    // đồng bộ dữ liệu cũ vào ES
+    @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
+    @PostMapping("/admin/sync-es")
+    public ResponseEntity<?> syncAllDataToElasticsearch() {
+        try {
+            List<Product> allProducts = productRepository.findAll();
+            int count = 0;
+            for (Product product : allProducts) {
+                productEsService.syncProductToEs(product);
+                count++;
+            }
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Synced " + count + " products to Elasticsearch successfully")
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message("Sync failed: " + e.getMessage())
+                    .build());
+        }
+    }
     @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PostMapping("/admin/search")
     public ResponseEntity<?> searchProductsForAdmin(@RequestBody AdminProductSearchRequest request) {

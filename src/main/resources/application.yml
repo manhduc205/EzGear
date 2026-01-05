@@ -28,6 +28,10 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
 
+  elasticsearch:
+    uris: http://localhost:9200
+    connection-timeout: 5s
+    socket-timeout: 3s
   data:
     redis:
       host: localhost
@@ -37,6 +41,10 @@ spring:
 
     mongodb:
       uri: ${MONGO_URI}
+
+    elasticsearch:
+      repositories:
+        enabled: true
 
   sendgrid:
     api-key: ${SENDGRID_API_KEY}
