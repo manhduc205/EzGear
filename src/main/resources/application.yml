@@ -30,8 +30,8 @@ spring:
 
   elasticsearch:
     uris: http://localhost:9200
-    connection-timeout: 5s
-    socket-timeout: 3s
+    connection-timeout: 10s
+    socket-timeout: 60s
   data:
     redis:
       host: localhost
