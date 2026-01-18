@@ -10,6 +10,7 @@ import com.manhduc205.ezgear.dtos.responses.product.ProductSiblingResponse;
 import com.manhduc205.ezgear.models.Product;
 import com.manhduc205.ezgear.models.ProductImage;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,4 +32,5 @@ public interface ProductService {
     List<ProductSiblingResponse> getRelatedProducts(String slug);
     ProductDetailResponse getProductDetail(String slug);
     Page<AdminProductResponse> searchProductsForAdmin(AdminProductSearchRequest request);
+    Page<ProductSiblingResponse> getProductsByCategorySlug(String slug, Pageable pageable);
 }

@@ -377,4 +377,27 @@ public class ProductServiceImpl implements ProductService {
 
         return savedImages;
     }
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductSiblingResponse> getProductsByCategorySlug(String slug, Pageable pageable) {
+        Page<Product> productPage = productRepository.findByCategorySlugAndIsActiveTrue(slug, pageable);
+
+        return productPage.map(p -> {
+            // Logic lấy giá hiển thị (Giá rẻ nhất trong các biến thể Active)
+            Long displayPrice = p.getProductSkus().stream()
+                    .filter(ProductSKU::getIsActive)
+                    .map(ProductSKU::getPrice)
+                    .min(Long::compare)
+                    .orElse(0L); // Nếu không có SKU nào thì giá = 0 (Liên hệ)
+
+            return ProductSiblingResponse.builder()
+                    .id(p.getId())
+                    .name(p.getName())
+                    .slug(p.getSlug())
+                    .imageUrl(p.getImageUrl())
+                    .price(displayPrice)
+                    .isCurrent(false) // Không quan trọng ở trang chủ
+                    .build();
+        });
+    }
 }

@@ -16,7 +16,7 @@ public class ProductDocument {
     @Id
     private Long id;
 
-    @Field(type = FieldType.Text, analyzer = "icu_analyzer")
+    @Field(type = FieldType.Text, analyzer = "my_ngram_analyzer", searchAnalyzer = "standard")
     private String name;
 
     @Field(type = FieldType.Keyword)
@@ -25,13 +25,13 @@ public class ProductDocument {
     @Field(type = FieldType.Long)
     private Long price;
 
-    @Field(type = FieldType.Keyword)
+    @Field(type = FieldType.Text, analyzer = "my_ngram_analyzer", searchAnalyzer = "standard")
     private String brandName;
 
     @Field(type = FieldType.Long)
     private Long brandId;
 
-    @Field(type = FieldType.Keyword)
+    @Field(type = FieldType.Text)
     private String categoryName;
 
     @Field(type = FieldType.Long)
@@ -43,12 +43,15 @@ public class ProductDocument {
     @Field(type = FieldType.Boolean)
     private Boolean isActive;
 
-    @Field(type = FieldType.Date)
-    private LocalDateTime createdAt;
-
     @Field(type = FieldType.Integer)
     private Integer reviewCount;
 
     @Field(type = FieldType.Double)
     private Double ratingAverage;
+
+    @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second)
+    private LocalDateTime createdAt;
+
+    @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second)
+    private LocalDateTime updatedAt;
 }

@@ -19,6 +19,9 @@ import com.manhduc205.ezgear.services.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +38,7 @@ import java.util.*;
 public class ProductController {
 
     private final ProductService productService;
-    private final ProductEsService productEsService; // 🟢 1. Inject Service ES
+    private final ProductEsService productEsService;
     private final ProductRepository productRepository;
 
     // tìm kiếm bên người dùng
@@ -91,6 +94,31 @@ public class ProductController {
             return ResponseEntity.ok(ApiResponse.builder()
                     .success(true)
                     .message("Search products success")
+                    .payload(result)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .build());
+        }
+    }
+
+    @GetMapping("/public/category/{slug}")
+    public ResponseEntity<?> getProductsByCategory(
+            @PathVariable String slug,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int limit
+    ) {
+        try {
+            // Tạo Pageable sắp xếp mới nhất lên đầu
+            Pageable pageable = PageRequest.of(page, limit, Sort.by("createdAt").descending());
+
+            Page<ProductSiblingResponse> result = productService.getProductsByCategorySlug(slug, pageable);
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Get products by category success")
                     .payload(result)
                     .build());
         } catch (Exception e) {

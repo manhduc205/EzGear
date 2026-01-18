@@ -1,12 +1,23 @@
 {
   "index": {
     "analysis": {
+      "tokenizer": {
+        "my_edge_ngram_tokenizer": {
+          "type": "edge_ngram",
+          "min_gram": 2,
+          "max_gram": 20,
+          "token_chars": [
+            "letter",
+            "digit"
+          ]
+        }
+      },
       "analyzer": {
-        "icu_analyzer": {
-          "tokenizer": "icu_tokenizer",
+        "my_ngram_analyzer": {
+          "type": "custom",
+          "tokenizer": "my_edge_ngram_tokenizer",
           "filter": [
-            "icu_folding",
-            "icu_normalizer"
+            "lowercase"
           ]
         }
       }
