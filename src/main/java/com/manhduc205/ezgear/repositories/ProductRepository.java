@@ -20,6 +20,15 @@ public interface ProductRepository extends JpaRepository<Product,Long> , JpaSpec
     // Tìm các sản phẩm cùng Series Code (trừ chính nó)
     List<Product> findBySeriesCodeAndIdNot(String seriesCode, Long id);
 
-    @Query("SELECT p FROM Product p JOIN p.category c WHERE c.slug = :slug AND p.isActive = true")
-    Page<Product> findByCategorySlugAndIsActiveTrue(@Param("slug") String slug, Pageable pageable);
+    @Query("SELECT p FROM Product p " +
+            "JOIN p.category c " +
+            "LEFT JOIN p.brand b " + // Join bảng Brand
+            "WHERE c.slug = :categorySlug " +
+            "AND (:brandSlug IS NULL OR b.slug = :brandSlug) " +
+            "AND p.isActive = true")
+    Page<Product> findByCategoryAndBrand(
+            @Param("categorySlug") String categorySlug,
+            @Param("brandSlug") String brandSlug,
+            Pageable pageable
+    );
 }

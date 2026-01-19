@@ -107,6 +107,7 @@ public class ProductController {
     @GetMapping("/public/category/{slug}")
     public ResponseEntity<?> getProductsByCategory(
             @PathVariable String slug,
+            @RequestParam(required = false) String brand,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int limit
     ) {
@@ -114,7 +115,7 @@ public class ProductController {
             // Tạo Pageable sắp xếp mới nhất lên đầu
             Pageable pageable = PageRequest.of(page, limit, Sort.by("createdAt").descending());
 
-            Page<ProductSiblingResponse> result = productService.getProductsByCategorySlug(slug, pageable);
+            Page<ProductSiblingResponse> result = productService.getProductsByCategorySlug(slug, brand, pageable);
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .success(true)

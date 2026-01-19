@@ -379,8 +379,8 @@ public class ProductServiceImpl implements ProductService {
     }
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductSiblingResponse> getProductsByCategorySlug(String slug, Pageable pageable) {
-        Page<Product> productPage = productRepository.findByCategorySlugAndIsActiveTrue(slug, pageable);
+    public Page<ProductSiblingResponse> getProductsByCategorySlug(String categorySlug, String brandSlug, Pageable pageable) {
+        Page<Product> productPage = productRepository.findByCategoryAndBrand(categorySlug, brandSlug, pageable);
 
         return productPage.map(p -> {
             // Logic lấy giá hiển thị (Giá rẻ nhất trong các biến thể Active)
@@ -396,7 +396,9 @@ public class ProductServiceImpl implements ProductService {
                     .slug(p.getSlug())
                     .imageUrl(p.getImageUrl())
                     .price(displayPrice)
-                    .isCurrent(false) // Không quan trọng ở trang chủ
+                    .isCurrent(false)
+                    .ratingAverage(p.getRatingAverage() != null ? p.getRatingAverage() : 0.0)
+                    .reviewCount(p.getReviewCount() != null ? p.getReviewCount() : 0)
                     .build();
         });
     }

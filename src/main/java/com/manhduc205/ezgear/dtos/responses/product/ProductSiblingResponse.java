@@ -12,4 +12,6 @@ public class ProductSiblingResponse {
     private String imageUrl;
     private Long price;
     private Boolean isCurrent;
+    private Double ratingAverage;
+    private Integer reviewCount;
 }

@@ -32,5 +32,5 @@ public interface ProductService {
     List<ProductSiblingResponse> getRelatedProducts(String slug);
     ProductDetailResponse getProductDetail(String slug);
     Page<AdminProductResponse> searchProductsForAdmin(AdminProductSearchRequest request);
-    Page<ProductSiblingResponse> getProductsByCategorySlug(String slug, Pageable pageable);
+    Page<ProductSiblingResponse> getProductsByCategorySlug(String categorySlug, String brandSlug, Pageable pageable);
 }

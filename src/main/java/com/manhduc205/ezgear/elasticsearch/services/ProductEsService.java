@@ -84,7 +84,7 @@ public class ProductEsService {
                     return q.multiMatch(m -> m
                             .fields("name^3", "brand^2", "category", "shortDesc") // Ưu tiên: Tên (x3 điểm) > Hãng (x2)
                             .query(keyword)
-                            .fuzziness("AUTO")              // Chấp nhận sai chính tả (nitrov -> nitro v)
+                            .fuzziness("AUTO")
                             .operator(Operator.Or)          // Tìm thấy 1 trong các từ là được
                     );
                 })
