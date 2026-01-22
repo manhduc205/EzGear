@@ -27,6 +27,17 @@ public class GhnLocalLocationService {
                 .collect(Collectors.toList());
     }
 
+    public List<LocationOptionResponse> getDistricts(Integer provinceId) {
+        return ghnLocationRepository.findByTypeAndParentId(GhnLocation.Type.DISTRICT, String.valueOf(provinceId))
+                .stream()
+                .map(loc -> LocationOptionResponse.builder()
+                        .id(Integer.parseInt(loc.getId()))
+                        .name(loc.getName())
+                        .build())
+                .sorted((d1, d2) -> d1.getName().compareToIgnoreCase(d2.getName()))
+                .collect(Collectors.toList());
+    }
+
     public String getProvinceName(Integer id) {
         return ghnLocationRepository.findByTypeAndId(GhnLocation.Type.PROVINCE, String.valueOf(id))
                 .map(GhnLocation::getName)

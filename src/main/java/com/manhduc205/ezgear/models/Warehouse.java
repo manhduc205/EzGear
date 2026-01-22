@@ -17,11 +17,14 @@ public class Warehouse extends AbstractEntity {
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true)
     private String code;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String name;
+
+    @Column(name = "map_url")
+    private String mapUrl;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;

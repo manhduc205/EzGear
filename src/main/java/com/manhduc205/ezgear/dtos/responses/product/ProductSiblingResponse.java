@@ -14,4 +14,5 @@ public class ProductSiblingResponse {
     private Boolean isCurrent;
     private Double ratingAverage;
     private Integer reviewCount;
+    private Long soldCount;
 }

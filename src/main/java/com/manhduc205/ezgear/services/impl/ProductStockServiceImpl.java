@@ -3,16 +3,15 @@ package com.manhduc205.ezgear.services.impl;
 import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
+import com.manhduc205.ezgear.dtos.responses.BranchStockResponse;
 import com.manhduc205.ezgear.dtos.responses.StockResponse;
 import com.manhduc205.ezgear.exceptions.RequestException;
-import com.manhduc205.ezgear.models.ProductSKU;
-import com.manhduc205.ezgear.models.ProductStock;
-import com.manhduc205.ezgear.models.User;
-import com.manhduc205.ezgear.models.Warehouse;
+import com.manhduc205.ezgear.models.*;
 import com.manhduc205.ezgear.repositories.OrderRepository;
 import com.manhduc205.ezgear.repositories.ProductSkuRepository;
 import com.manhduc205.ezgear.repositories.ProductStockRepository;
 import com.manhduc205.ezgear.repositories.WarehouseRepository;
+import com.manhduc205.ezgear.services.GhnLocalLocationService;
 import com.manhduc205.ezgear.services.ProductStockService;
 import com.manhduc205.ezgear.services.StockTransferService;
 import com.manhduc205.ezgear.services.UserService;
@@ -37,6 +36,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     private final ProductSkuRepository productSkuRepository;
     private final OrderRepository orderRepository;
     private final UserService userService;
+    private final GhnLocalLocationService locationService;
     // vì stockTransferService cần productStockService để trừ/ cộng kho
     // producstStockService cũng cần stockTransferService để tạo phiếu chuyển kho tự động
     // nên ta dùng @Autowired @Lazy để tránh vòng phụ thuộc giữa 2 service @lazy giúp hoãn việc khởi tạo bean đến khi nó thực sự được sử dụng
@@ -385,5 +385,52 @@ public class ProductStockServiceImpl implements ProductStockService {
                 .safetyStock(stock.getSafetyStock())
                 .available(Math.max(0, stock.getQtyOnHand() - stock.getQtyReserved() - stock.getSafetyStock()))
                 .build();
+    }
+
+    @Override
+    public List<BranchStockResponse> getStockLocations(Long skuId, Integer provinceId, Integer districtId) {
+        // 1. Gọi Repo lấy dữ liệu thô
+        List<ProductStock> stocks = productStockRepository.findStockLocations(skuId, provinceId, districtId);
+
+        // 2. Convert sang DTO
+        return stocks.stream().map(ps -> {
+            Warehouse w = ps.getWarehouse();
+            Branch b = w.getBranch(); // Lấy thông tin từ Branch
+
+            // Logic ghép địa chỉ từ Branch
+            String fullAddress = buildBranchAddress(b);
+
+            return BranchStockResponse.builder()
+                    .warehouseId(w.getId())
+                    .branchName(b.getName())      // Tên chi nhánh
+                    .fullAddress(fullAddress)     // Địa chỉ đã ghép
+                    .phone(b.getPhone())          // SĐT của Branch
+                    .mapUrl(w.getMapUrl())        // Map của Warehouse
+                    .quantity(ps.getQtyOnHand())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    private String buildBranchAddress(Branch b) {
+        StringBuilder sb = new StringBuilder();
+
+        if (b.getAddressLine() != null) sb.append(b.getAddressLine());
+
+        if (b.getWardCode() != null) {
+            String wardName = locationService.getWardName(b.getWardCode());
+            if (!"N/A".equals(wardName)) sb.append(", ").append(wardName);
+        }
+
+        if (b.getDistrictId() != null) {
+            String distName = locationService.getDistrictName(b.getDistrictId());
+            if (!"N/A".equals(distName)) sb.append(", ").append(distName);
+        }
+
+        if (b.getProvinceId() != null) {
+            String provName = locationService.getProvinceName(b.getProvinceId());
+            if (!"N/A".equals(provName)) sb.append(", ").append(provName);
+        }
+
+        return sb.toString();
     }
 }

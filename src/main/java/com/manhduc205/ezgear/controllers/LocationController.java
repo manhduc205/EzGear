@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -21,5 +22,9 @@ public class LocationController {
     public ResponseEntity<List<LocationOptionResponse>> getProvinces() {
         List<LocationOptionResponse> provinces = locationService.getAllProvinces();
         return ResponseEntity.ok(provinces);
+    }
+    @GetMapping("/districts")
+    public ResponseEntity<List<LocationOptionResponse>> getDistricts(@RequestParam Integer provinceId) {
+        return ResponseEntity.ok(locationService.getDistricts(provinceId));
     }
 }

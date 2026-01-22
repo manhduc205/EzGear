@@ -55,6 +55,9 @@ public class Product extends AbstractEntity{
     @Builder.Default
     private Integer reviewCount = 0;
 
+    @Column(name = "sold_count")
+    private Long soldCount = 0L;
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ProductSKU> productSkus;
 

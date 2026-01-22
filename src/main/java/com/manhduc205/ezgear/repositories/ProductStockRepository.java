@@ -89,6 +89,22 @@ public interface ProductStockRepository extends JpaRepository<ProductStock, Long
             "ORDER BY (ps.qtyOnHand - ps.qtyReserved - ps.safetyStock) DESC")
     List<ProductStock> findAvailableInProvince(@Param("skuId") Long skuId,
                                                @Param("provinceId") Integer provinceId);
+
+    @Query("""
+            SELECT ps FROM ProductStock ps
+            JOIN FETCH ps.warehouse w
+            JOIN FETCH w.branch b
+            WHERE ps.productSku.id = :skuId
+                AND ps.qtyOnHand > 0
+                AND w.isActive = true
+                AND b.isActive = true
+                AND (:provinceId IS NULL OR b.provinceId = :provinceId)
+                AND(:districtId IS NULL OR b.districtId = :districtId)
+            ORDER BY (ps.qtyOnHand - COALESCE(ps.qtyReserved, 0)) DESC
+""")
+    List<ProductStock> findStockLocations(@Param("skuId") Long skuId,
+                                               @Param("provinceId") Integer provinceId,
+                                               @Param("districtId") Integer districtId);
     
 }
 

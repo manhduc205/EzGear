@@ -109,13 +109,11 @@ public class ProductController {
             @PathVariable String slug,
             @RequestParam(required = false) String brand,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int limit
+            @RequestParam(defaultValue = "12") int limit,
+            @RequestParam(defaultValue = "latest") String sort
     ) {
         try {
-            // Tạo Pageable sắp xếp mới nhất lên đầu
-            Pageable pageable = PageRequest.of(page, limit, Sort.by("createdAt").descending());
-
-            Page<ProductSiblingResponse> result = productService.getProductsByCategorySlug(slug, brand, pageable);
+            Page<ProductSiblingResponse> result = productService.getProductsByCategorySlug(slug, brand, page, limit, sort);
 
             return ResponseEntity.ok(ApiResponse.builder()
                     .success(true)

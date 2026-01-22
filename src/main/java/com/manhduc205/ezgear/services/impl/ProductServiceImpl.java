@@ -379,7 +379,39 @@ public class ProductServiceImpl implements ProductService {
     }
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductSiblingResponse> getProductsByCategorySlug(String categorySlug, String brandSlug, Pageable pageable) {
+    public Page<ProductSiblingResponse> getProductsByCategorySlug(String categorySlug, String brandSlug, int page, int limit, String sortStr) {
+
+        Sort sort = Sort.by("createdAt").descending(); // Mặc định: Mới nhất
+
+        if (sortStr != null && !sortStr.isEmpty()) {
+            switch (sortStr.toLowerCase()) {
+                case "top-rated":
+                    sort = Sort.by("ratingAverage").descending()
+                            .and(Sort.by("reviewCount").descending());
+                    break;
+
+                case "most-reviewed":
+                    sort = Sort.by("reviewCount").descending();
+                    break;
+
+                case "best-selling":
+                    sort = Sort.by("soldCount").descending();
+                    break;
+
+                // 🆕 Case 4: Mới nhất
+                case "latest":
+                case "newest":
+                    sort = Sort.by("createdAt").descending();
+                    break;
+
+                default:
+                    // Mặc định giữ nguyên là mới nhất
+                    break;
+            }
+        }
+
+        Pageable pageable = PageRequest.of(page, limit, sort);
+
         Page<Product> productPage = productRepository.findByCategoryAndBrand(categorySlug, brandSlug, pageable);
 
         return productPage.map(p -> {
@@ -388,7 +420,7 @@ public class ProductServiceImpl implements ProductService {
                     .filter(ProductSKU::getIsActive)
                     .map(ProductSKU::getPrice)
                     .min(Long::compare)
-                    .orElse(0L); // Nếu không có SKU nào thì giá = 0 (Liên hệ)
+                    .orElse(0L);
 
             return ProductSiblingResponse.builder()
                     .id(p.getId())
@@ -399,6 +431,7 @@ public class ProductServiceImpl implements ProductService {
                     .isCurrent(false)
                     .ratingAverage(p.getRatingAverage() != null ? p.getRatingAverage() : 0.0)
                     .reviewCount(p.getReviewCount() != null ? p.getReviewCount() : 0)
+                    .soldCount(p.getSoldCount())
                     .build();
         });
     }

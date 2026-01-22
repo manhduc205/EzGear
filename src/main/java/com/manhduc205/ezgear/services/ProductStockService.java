@@ -2,6 +2,7 @@ package com.manhduc205.ezgear.services;
 
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
+import com.manhduc205.ezgear.dtos.responses.BranchStockResponse;
 import com.manhduc205.ezgear.dtos.responses.StockResponse;
 
 import java.util.List;
@@ -27,4 +28,5 @@ public interface ProductStockService {
     // Trả về Map<WarehouseId, Map<SkuId, Qty>> để tra cứu cực nhanh O(1)
     Map<Long, Map<Long, Integer>> getStockMatrix(List<Long> warehouseIds, List<Long> skuIds);
     Map<Long, Integer> reserveStockDistributed(String orderCode, Long skuId, int requestedQty, Long hubWarehouseId, Integer provinceId);
+    List<BranchStockResponse> getStockLocations(Long skuId, Integer provinceId, Integer districtId);
 }

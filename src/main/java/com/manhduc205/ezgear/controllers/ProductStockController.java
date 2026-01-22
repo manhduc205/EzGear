@@ -1,6 +1,8 @@
 package com.manhduc205.ezgear.controllers;
 
 import com.manhduc205.ezgear.dtos.ProductStockDTO;
+import com.manhduc205.ezgear.dtos.responses.ApiResponse;
+import com.manhduc205.ezgear.dtos.responses.BranchStockResponse;
 import com.manhduc205.ezgear.dtos.responses.StockResponse;
 import com.manhduc205.ezgear.security.CustomUserDetails;
 import com.manhduc205.ezgear.services.ProductStockService;
@@ -35,5 +37,27 @@ public class ProductStockController {
     public ResponseEntity<?> getAllStock(@AuthenticationPrincipal CustomUserDetails user) {
         List<StockResponse> stocks = productStockService.getAllStock(user.getId());
         return ResponseEntity.ok(stocks);
+    }
+
+    @GetMapping("/public/locations")
+    public ResponseEntity<?> getStockLocations(
+            @RequestParam Long skuId,
+            @RequestParam(required = false) Integer provinceId,
+            @RequestParam(required = false) Integer districtId
+    ) {
+        try {
+            List<BranchStockResponse> result = productStockService.getStockLocations(skuId, provinceId, districtId);
+
+            return ResponseEntity.ok(ApiResponse.builder()
+                    .success(true)
+                    .message("Success")
+                    .payload(result)
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.builder()
+                    .success(false)
+                    .message(e.getMessage())
+                    .build());
+        }
     }
 }

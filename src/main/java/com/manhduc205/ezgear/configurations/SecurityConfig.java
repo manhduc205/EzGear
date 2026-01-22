@@ -81,6 +81,7 @@ public class SecurityConfig {
                         .requestMatchers("/ghn-locations/**").permitAll()
                         .requestMatchers("/orders/**").permitAll()
                         .requestMatchers("/locations/**").permitAll()
+                        .requestMatchers("/stocks/**").permitAll()
                         .requestMatchers("/notifications/**").permitAll()
                         .requestMatchers("/reviews/**").permitAll()
                         .anyRequest().authenticated()
