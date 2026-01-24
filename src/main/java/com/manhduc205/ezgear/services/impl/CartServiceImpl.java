@@ -34,9 +34,7 @@ public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
     private final ProductStockService productStockService;
-    private final WarehouseService warehouseService;
     private final ProductSkuService productSkuService;
-    private final CustomerAddressRepository customerAddressRepository;
     private final ProductSkuRepository productSkuRepository;
     private final VoucherService voucherService;
     private final WarehouseRepository warehouseRepository;
@@ -51,7 +49,7 @@ public class CartServiceImpl implements CartService {
             throw new RequestException(Translator.toLocale("error.cart.empty"));
         }
 
-        // 1. Tìm kho dựa trên Tỉnh/Thành phố (Location Context)
+        // Tìm kho dựa trên Tỉnh/Thành phố (Location Context)
         // Không cần địa chỉ cụ thể, chỉ cần ProvinceId để biết kho nào phục vụ khu vực này
         Long warehouseId = resolveWarehouseByLocation(req.getProvinceId(), req.getCartItems());
 
@@ -253,6 +251,24 @@ public class CartServiceImpl implements CartService {
                                 .updatedAt(LocalDateTime.now())
                                 .build()
                 ));
+    }
+
+    @Override
+    public void clearCartAfterCheckout(Long userId, List<Long> skuIds) {
+        if (skuIds == null || skuIds.isEmpty()) return;
+
+        Cart cart = cartRepository.findByUserId(userId).orElse(null);
+
+        if (cart != null && cart.getItems() != null && !cart.getItems().isEmpty()) {
+
+            // Lọc bỏ những item nằm trong danh sách đã mua (skuIds)
+            // removeIf trả về true nếu có ít nhất 1 phần tử bị xóa
+            boolean changed = cart.getItems().removeIf(item -> skuIds.contains(item.getSkuId()));
+            if (changed) {
+                cart.setUpdatedAt(LocalDateTime.now());
+                cartRepository.save(cart);
+            }
+        }
     }
 
     // Logic tìm kho theo Tỉnh/Thành

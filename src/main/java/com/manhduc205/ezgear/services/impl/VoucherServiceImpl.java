@@ -6,14 +6,19 @@ import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.SearchVoucherRequest;
 import com.manhduc205.ezgear.dtos.request.voucher.VoucherRequest;
 import com.manhduc205.ezgear.dtos.responses.voucher.ApplyVoucherResponse;
+import com.manhduc205.ezgear.dtos.responses.voucher.PromotionResponse;
+import com.manhduc205.ezgear.exceptions.DataNotFoundException;
 import com.manhduc205.ezgear.exceptions.RequestException;
 import com.manhduc205.ezgear.models.promotion.Promotion;
 import com.manhduc205.ezgear.models.promotion.PromotionCategory;
+import com.manhduc205.ezgear.models.promotion.PromotionUsage;
 import com.manhduc205.ezgear.repositories.PromotionCategoryRepository;
 import com.manhduc205.ezgear.repositories.PromotionRepository;
+import com.manhduc205.ezgear.repositories.PromotionUsageRepository;
 import com.manhduc205.ezgear.services.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,7 +29,7 @@ public class VoucherServiceImpl implements VoucherService {
 
     private final PromotionRepository promotionRepository;
     private final PromotionCategoryRepository promotionCategoryRepository;
-
+    private final PromotionUsageRepository promotionUsageRepository;
     @Override
     public ApplyVoucherResponse applyVoucher(ApplyVoucherRequest req) {
 
@@ -41,7 +46,6 @@ public class VoucherServiceImpl implements VoucherService {
                 .build();
     }
 
-    // CheckoutService gọi lại => TRÁNH GIAN LẬN FE !!!
     @Override
     public long calculateDiscountForCheckout(String voucherCode,
                                              List<ApplyVoucherItemRequest> items,
@@ -73,8 +77,9 @@ public class VoucherServiceImpl implements VoucherService {
         if(now.isBefore(promo.getStartAt()) || now.isAfter(promo.getEndAt()))
             throw new RequestException(Translator.toLocale("error.voucher.expired"));
 
-        if(promo.getUsageLimit() > 0 && promo.getUsedCount() >= promo.getUsageLimit())
+        if(promo.getUsageLimit() != null && promo.getUsageLimit() > 0 && promo.getUsedCount() >= promo.getUsageLimit()) {
             throw new RequestException(Translator.toLocale("error.voucher.usage_exceeded"));
+        }
     }
 
     private void validateMinOrder(Promotion promo, Long subtotal){
@@ -135,6 +140,7 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
     @Override
+    @Transactional
     public Promotion createVoucher(VoucherRequest req) {
         if (promotionRepository.existsByCode(req.getCode())) {
             throw new RequestException(Translator.toLocale("error.voucher.code_exists"));
@@ -171,6 +177,7 @@ public class VoucherServiceImpl implements VoucherService {
         return saved;
     }
     @Override
+    @Transactional
     public Promotion updateVoucher(Long id, VoucherRequest req) {
         Promotion promo = promotionRepository.findById(id)
                 .orElseThrow(() -> new RequestException(Translator.toLocale("error.voucher.not_found")));
@@ -207,6 +214,7 @@ public class VoucherServiceImpl implements VoucherService {
     }
 
     @Override
+    @Transactional
     public void deleteVoucher(Long id) {
         Promotion promo = promotionRepository.findById(id)
                 .orElseThrow(() -> new RequestException(Translator.toLocale("error.voucher.not_found")));
@@ -261,4 +269,52 @@ public class VoucherServiceImpl implements VoucherService {
                 .toList();
     }
 
+    @Override
+    public List<PromotionResponse> getAvailableVouchers() {
+        List<Promotion> entities = promotionRepository.findAvailableVouchers();
+
+        return entities.stream().map(p -> {
+            List<Long> catIds = null;
+
+            // Nếu là voucher theo danh mục, phải lấy danh sách ID danh mục kèm theo
+            if ("CATEGORY".equals(p.getScope())) {
+                catIds = promotionCategoryRepository.findCategoryIdsByPromotionId(p.getId());
+            }
+
+            return PromotionResponse.builder()
+                    .id(p.getId())
+                    .code(p.getCode())
+                    .type(p.getType())
+                    .discountType(p.getDiscountType())
+                    .discountValue(p.getDiscountValue())
+                    .maxDiscount(p.getMaxDiscount())
+                    .minOrder(p.getMinOrder())
+                    .scope(p.getScope())
+                    .startAt(p.getStartAt())
+                    .endAt(p.getEndAt())
+                    .applicableCategoryIds(catIds)
+                    .build();
+        }).toList();
+    }
+    @Override
+    @Transactional
+    public void recordVoucherUsage(String code, Long userId, Long orderId) {
+        Promotion promotion = promotionRepository.findByCode(code)
+                .orElseThrow(() -> new DataNotFoundException("Voucher not found"));
+
+        // Double check phút chót
+        validatePromotion(promotion);
+
+        // Tăng lượt dùng
+        promotion.setUsedCount(promotion.getUsedCount() + 1);
+        promotionRepository.save(promotion);
+
+        PromotionUsage usage = PromotionUsage.builder()
+                .promotionId(promotion.getId())
+                .userId(userId)
+                .orderId(orderId)
+                .usedAt(LocalDateTime.now())
+                .build();
+        promotionUsageRepository.save(usage);
+    }
 }

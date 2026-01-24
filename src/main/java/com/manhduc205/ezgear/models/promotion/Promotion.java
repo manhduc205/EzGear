@@ -48,7 +48,7 @@ public class Promotion {
     @Column(name = "used_count")
     private Integer usedCount;
 
-    private String scope; // GLOBAL, CATEGORY, USER
+    private String scope;
 
     private String status; // ACTIVE, INACTIVE, EXPIRED
 

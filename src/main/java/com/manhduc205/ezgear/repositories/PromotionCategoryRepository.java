@@ -3,6 +3,7 @@ package com.manhduc205.ezgear.repositories;
 import com.manhduc205.ezgear.models.promotion.Promotion;
 import com.manhduc205.ezgear.models.promotion.PromotionCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -15,6 +16,8 @@ public interface PromotionCategoryRepository extends JpaRepository<PromotionCate
     @Query("SELECT pc.categoryId FROM PromotionCategory pc WHERE pc.promotionId = :promoId")
     List<Long> findCategoryIdsByPromotionId(Long promoId);
 
-    Optional<Promotion> deleteByPromotionId(Long id);
+    @Modifying
+    @Query("DELETE FROM PromotionCategory pc WHERE pc.promotionId = :promotionId")
+    void deleteByPromotionId(Long promotionId);
 }
 

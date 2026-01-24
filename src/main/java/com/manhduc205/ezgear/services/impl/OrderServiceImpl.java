@@ -50,9 +50,11 @@ public class OrderServiceImpl implements OrderService {
     private final ShippingFeeCalculatorService shippingFeeService;
     private final VoucherService voucherService;
     private final PaymentService paymentService;
+    private final CartService cartService;
     private final InvoiceService invoiceService;
     private final MailService mailService;
     private final FCMService fcmService;
+
 
 
     @Override
@@ -189,6 +191,13 @@ public class OrderServiceImpl implements OrderService {
 
         Order savedOrder = orderRepo.save(order);
 
+        if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
+            try {
+                voucherService.recordVoucherUsage(req.getVoucherCode(), userId, savedOrder.getId());
+            } catch (Exception e) {
+                throw new RequestException(Translator.toLocale("error.voucher.apply_failed") + ": " + e.getMessage());
+            }
+        }
         for (OrderItem it : items) {
             it.setOrder(savedOrder);
             orderItemRepo.save(it);
@@ -276,7 +285,12 @@ public class OrderServiceImpl implements OrderService {
             log.error("Lỗi sinh hóa đơn tự động: {}", e.getMessage());
         }
 
-        // 12. Return duy nhất
+        List<Long> boughtSkuIds = req.getCartItems().stream()
+                .map(CartItemRequest::getSkuId)
+                .collect(Collectors.toList());
+
+        cartService.clearCartAfterCheckout(userId, boughtSkuIds);
+
         return OrderPlacementResponse.builder()
                 .orderId(savedOrder.getId())
                 .orderCode(savedOrder.getCode())
