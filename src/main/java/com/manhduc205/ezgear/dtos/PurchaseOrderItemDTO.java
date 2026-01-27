@@ -15,7 +15,7 @@ public class PurchaseOrderItemDTO {
     private Long purchaseOrderId;
 
     private Long skuId;
-
+    private String skuCode;
     private Integer quantity;
 
     private Long  unitPrice;

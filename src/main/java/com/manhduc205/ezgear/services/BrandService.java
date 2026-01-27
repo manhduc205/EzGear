@@ -13,4 +13,5 @@ public interface BrandService {
     Brand updateBrand(Long brandId,BrandDTO brandDTO);
     Brand getBrandById(Long brandId);
     void deleteBrandById(Long brandId);
+    List<BrandDTO> getBrandsByCategory(Long categoryId);
 }

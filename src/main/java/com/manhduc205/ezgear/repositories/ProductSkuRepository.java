@@ -8,13 +8,17 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductSkuRepository extends JpaRepository<ProductSKU,Long>, JpaSpecificationExecutor<ProductSKU> {
     boolean existsBySku(String sku);
     List<ProductSKU> findByProductIdAndIsActiveTrueOrderByPriceAsc(Long productId);
-    List<ProductSKU> findByProductId(Long productId);
     @Modifying
     @Query("UPDATE ProductSKU s SET s.isActive = false WHERE s.product.id = :productId")
     void softDeleteByProductId(Long productId);
+
+    Optional<ProductSKU> findBySku(String sku);
+
+    Optional<ProductSKU> findByBarcode(String barcode);
 }
 

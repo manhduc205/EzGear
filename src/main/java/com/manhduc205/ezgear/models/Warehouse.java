@@ -23,7 +23,7 @@ public class Warehouse extends AbstractEntity {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "map_url")
+    @Column(name = "map_url", columnDefinition = "TEXT")
     private String mapUrl;
 
     @Column(name = "is_active", nullable = false)

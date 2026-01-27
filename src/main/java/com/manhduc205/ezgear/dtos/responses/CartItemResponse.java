@@ -15,6 +15,7 @@ public class CartItemResponse {
     private Long price;
     private int quantity;
     private boolean selected;
+    private Long categoryId;
     private boolean isOutOfStock; // True nếu hết hàng
     private int availableQuantity; // Số lượng còn lại tại khu vực đó
 }

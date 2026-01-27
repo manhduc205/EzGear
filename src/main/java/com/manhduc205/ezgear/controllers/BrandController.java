@@ -55,6 +55,15 @@ public class BrandController {
                 .payload(brands)
                 .build());
     }
+
+    @GetMapping("/{categoryId}")
+    public ResponseEntity<?> getBrandsByCategory(@PathVariable("categoryId") Long categoryId) {
+        List<BrandDTO> brands = brandService.getBrandsByCategory(categoryId);
+        return ResponseEntity.ok(ApiResponse.builder()
+                .success(true)
+                .payload(brands)
+                .build());
+    }
     @PreAuthorize("hasAnyRole('ADMIN', 'SYS_ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateBrand(@PathVariable("id") Long id, @RequestBody BrandDTO brandDTO) {

@@ -50,23 +50,30 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 .note(purchaseOrderDTO.getNote())
                 .createdBy(purchaseOrderDTO.getCreatedBy())
                 .build();
-        // thêm danh sách po item
-        List<PurchaseOrderItem> items = purchaseOrderDTO.getItems()
-                .stream().map(i -> {
-                    ProductSKU productSKU = productSkuRepository.findById(i.getSkuId())
-                            .orElseThrow(() -> new RequestException(Translator.toLocale("error.sku.not_found")));
-                    return PurchaseOrderItem.builder()
-                            .purchaseOrder(purchaseOrder)
-                            .productSKU(productSKU)
-                            .quantity(i.getQuantity())
-                            .unitPrice(i.getUnitPrice())
-                            .build();
-                }).collect(Collectors.toList());
+        List<PurchaseOrderItem> items = purchaseOrderDTO.getItems().stream().map(i -> {
+            ProductSKU productSKU = resolveSku(i.getSkuId(), i.getSkuCode());
+            return PurchaseOrderItem.builder()
+                    .purchaseOrder(purchaseOrder)
+                    .productSKU(productSKU)
+                    .quantity(i.getQuantity())
+                    .unitPrice(i.getUnitPrice())
+                    .build();
+        }).collect(Collectors.toList());
         purchaseOrder.setItems(items);
         purchaseOrderRepository.save(purchaseOrder);
         return purchaseOrderDTO;
     }
-
+    private ProductSKU resolveSku(Long skuId, String skuCode) {
+        if (skuId != null) {
+            return productSkuRepository.findById(skuId)
+                    .orElseThrow(() -> new RequestException(Translator.toLocale("error.sku.not_found")));
+        } else if (skuCode != null && !skuCode.isBlank()) {
+            return productSkuRepository.findBySku(skuCode) // Nhớ thêm hàm này vào Repo
+                    .orElseThrow(() -> new RequestException(Translator.toLocale("error.sku.not_found_by_code", skuCode)));
+        } else {
+            throw new RequestException(Translator.toLocale("error.sku.identifier_required"));
+        }
+    }
     @Override
     public PurchaseOrderDTO confirmOrder(Long id) {
         PurchaseOrder  po = purchaseOrderRepository.findById(id)
@@ -194,6 +201,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                             .total(total)
                             .note(po.getNote())
                             .createdBy(po.getCreatedBy())
+                            .createdAt(po.getCreatedAt())
                             .items(itemResponses)
                             .build();
 
@@ -245,8 +253,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
                 existing.remove(itemDTO.getId());
             } else {
                 // thêm item mới
-                ProductSKU sku = productSkuRepository.findById(itemDTO.getSkuId())
-                        .orElseThrow(() -> new RequestException(Translator.toLocale("error.sku.not_found")));
+                ProductSKU sku = resolveSku(itemDTO.getSkuId(), itemDTO.getSkuCode());
 
                 PurchaseOrderItem newItem = PurchaseOrderItem.builder()
                         .purchaseOrder(po)

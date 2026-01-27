@@ -2,6 +2,7 @@ package com.manhduc205.ezgear.dtos.responses;
 
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -23,6 +24,6 @@ public class PurchaseOrderResponse {
 
     private String note;
     private Long createdBy;
-
+    private LocalDateTime createdAt;
     private List<PurchaseOrderItemResponse> items;
 }

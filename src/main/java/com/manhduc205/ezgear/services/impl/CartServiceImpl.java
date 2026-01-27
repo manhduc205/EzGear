@@ -128,35 +128,10 @@ public class CartServiceImpl implements CartService {
     public CartResponse getCart(Long userId, Integer provinceId) {
         Cart cart = getOrCreateCart(userId);
 
-        // Mặc định nếu không có provinceId thì lấy Hà Nội (201) hoặc 0 (check toàn quốc)
+        // Mặc định nếu không có provinceId thì lấy Hà Nội (201)
         int currentProvinceId = (provinceId != null) ? provinceId : 201;
 
-        List<CartItemResponse> items = cart.getItems().stream().map(ci -> {
-            ProductSKU sku = productSkuService.getById(ci.getSkuId());
-
-            // CHECK TỒN KHO THEO TỈNH
-            int available = productStockService.getAvailableInProvince(ci.getSkuId(), currentProvinceId);
-            // Nếu tồn kho = 0 -> Chắc chắn hết
-            // Nếu khách mua 5 mà kho còn 2
-            boolean isOOS = (available < ci.getQuantity());
-
-            return CartItemResponse.builder()
-                    .skuId(ci.getSkuId())
-                    .skuName(sku.getName())
-                    .productName(sku.getProduct().getName())
-                    .skuName(sku.getName())
-                    .imageUrl(sku.getProduct().getImageUrl())
-                    .price(sku.getPrice())
-                    .quantity(ci.getQuantity())
-                    .selected(ci.getSelected())
-
-                    // Gán giá trị
-                    .isOutOfStock(isOOS)
-                    .availableQuantity(available)
-                    .build();
-        }).toList();
-
-        return CartResponse.builder().userId(userId).items(items).build();
+        return buildCartResponse(cart, currentProvinceId);
     }
 
     @Override
@@ -314,7 +289,10 @@ public class CartServiceImpl implements CartService {
             // Check tồn kho realtime theo tỉnh
             int available = productStockService.getAvailableInProvince(ci.getSkuId(), provinceId);
             boolean isOOS = (available < ci.getQuantity());
-
+            Long categoryId = null;
+            if (sku.getProduct() != null && sku.getProduct().getCategory() != null) {
+                categoryId = sku.getProduct().getCategory().getId();
+            }
             return CartItemResponse.builder()
                     .skuId(ci.getSkuId())
                     .skuName(sku.getName())
@@ -323,6 +301,7 @@ public class CartServiceImpl implements CartService {
                     .price(sku.getPrice())
                     .quantity(ci.getQuantity())
                     .selected(ci.getSelected())
+                    .categoryId(categoryId)
                     .isOutOfStock(isOOS)
                     .availableQuantity(available)
                     .build();
