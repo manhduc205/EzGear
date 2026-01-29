@@ -42,4 +42,25 @@ public class OrderController {
     public ResponseEntity<List<OrderListResponse>> getMyOrders(@AuthenticationPrincipal CustomUserDetails user) {
         return ResponseEntity.ok(orderService.getMyOrders(user.getId()));
     }
+    @PostMapping("/cancel/{orderCode}")
+    public ResponseEntity<String> cancelOrder(@PathVariable String orderCode, @AuthenticationPrincipal CustomUserDetails user) {
+        orderService.cancelOrder(orderCode, user.getId());
+        return ResponseEntity.ok("Order cancelled successfully");
+    }
+
+    @PostMapping("/update-status/{orderCode}")
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable String orderCode,
+            @RequestParam String status,
+            @AuthenticationPrincipal CustomUserDetails user
+    ) {
+        orderService.updateOrderStatus(orderCode, status, user.getId());
+        return ResponseEntity.ok("Order status updated successfully");
+    }
+
+    @GetMapping("manage/picking")
+    public ResponseEntity<?> getOrdersForPicking(@AuthenticationPrincipal CustomUserDetails user) {
+        List<OrderResponse> orders = orderService.getOrdersForPicking(user.getId());
+        return ResponseEntity.ok(orders);
+    }
 }

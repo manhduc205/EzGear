@@ -1,7 +1,7 @@
 package com.manhduc205.ezgear.services;
 
 import com.manhduc205.ezgear.dtos.request.order.CreateOrderRequest;
-import com.manhduc205.ezgear.dtos.request.order.OrderRequest;
+
 import com.manhduc205.ezgear.dtos.responses.order.OrderListResponse;
 import com.manhduc205.ezgear.dtos.responses.order.OrderPlacementResponse;
 import com.manhduc205.ezgear.dtos.responses.order.OrderResponse;
@@ -15,4 +15,6 @@ public interface OrderService {
     OrderResponse getOrderDetail(Long userId, String orderCode);
     List<OrderListResponse> getMyOrders(Long userId);
     List<OrderResponse> getOrdersForPicking(Long userId);
+    void cancelOrder(String orderCode, Long userId);
+    void updateOrderStatus(String orderCode, String status, Long userId);
 }

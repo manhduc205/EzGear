@@ -12,6 +12,7 @@ public class OrderListResponse {
     private String orderCode;
     private String status;          // Trạng thái đơn
     private String paymentStatus;   // Trạng thái thanh toán
+    private String paymentMethod;   // Phương thức thanh toán
     private Long grandTotal;        // Tổng thanh toán (Số to nhất)
     private LocalDateTime createdAt;
     private List<OrderListItem> items;

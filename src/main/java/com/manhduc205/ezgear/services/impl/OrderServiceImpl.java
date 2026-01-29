@@ -4,6 +4,7 @@ import com.manhduc205.ezgear.components.Translator;
 import com.manhduc205.ezgear.dtos.request.CartItemRequest;
 import com.manhduc205.ezgear.dtos.request.ProductPaymentRequest;
 import com.manhduc205.ezgear.dtos.request.order.CreateOrderRequest;
+
 import com.manhduc205.ezgear.dtos.request.voucher.ApplyVoucherItemRequest;
 import com.manhduc205.ezgear.dtos.responses.VNPayResponse;
 import com.manhduc205.ezgear.dtos.responses.order.OrderListResponse;
@@ -374,6 +375,7 @@ public class OrderServiceImpl implements OrderService {
                     .orderCode(order.getCode())
                     .status(order.getStatus())
                     .paymentStatus(order.getPaymentStatus())
+                    .paymentMethod(order.getPaymentMethod().name())
                     .grandTotal(order.getGrandTotal())
                     .createdAt(order.getCreatedAt())
                     .items(itemResponses)
@@ -408,9 +410,7 @@ public class OrderServiceImpl implements OrderService {
             orders = orderRepo.findForPicking(branchId, readyStatuses);
         }
 
-        // 3. Mapping Inline (Order -> DTO) ngay tại đây
         return orders.stream().map(order -> {
-            // Map OrderItem trước
             List<OrderResponse.OrderItemResponse> itemResponses = order.getItems().stream()
                     .map(item -> OrderResponse.OrderItemResponse.builder()
                             .productId(item.getProductId())
@@ -422,14 +422,12 @@ public class OrderServiceImpl implements OrderService {
                             .build())
                     .collect(Collectors.toList());
 
-            // Map Order Response
             return OrderResponse.builder()
                     .id(order.getId())
                     .orderCode(order.getCode())
                     .status(order.getStatus())
                     .paymentStatus(order.getPaymentStatus())
                     .paymentMethod(order.getPaymentMethod().name())
-                    // Null check an toàn cho Address
                     .receiverName(order.getShippingAddress() != null ? order.getShippingAddress().getReceiverName() : "")
                     .receiverPhone(order.getShippingAddress() != null ? order.getShippingAddress().getReceiverPhone() : "")
                     .receiverAddress(order.getShippingAddress() != null ? order.getShippingAddress().getAddressLine() : "")
@@ -438,5 +436,59 @@ public class OrderServiceImpl implements OrderService {
                     .items(itemResponses)
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelOrder(String orderCode, Long userId) {
+        Order order = orderRepo.findByCode(orderCode)
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.order.not_found", orderCode)));
+
+        if (!order.getUserId().equals(userId)) {
+            throw new AccessDeniedException(Translator.toLocale("error.common.access_denied"));
+        }
+
+        String currentStatus = order.getStatus();
+        if (OrderStatus.WAITING_PAYMENT.toString().equals(currentStatus)) {
+        } else if (OrderStatus.PENDING_SHIPMENT.toString().equals(currentStatus)) {
+            if (!PaymentMethod.COD.equals(order.getPaymentMethod())) {
+                throw new RequestException(Translator.toLocale("error.order.cannot_cancel_bad_status", currentStatus));
+            }
+        } else {
+            throw new RequestException(Translator.toLocale("error.order.cannot_cancel_bad_status", currentStatus));
+        }
+
+        order.setStatus(OrderStatus.CANCELLED.toString());
+        orderRepo.save(order);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateOrderStatus(String orderCode, String status, Long userId) {
+        Order order = orderRepo.findByCode(orderCode)
+                .orElseThrow(() -> new RequestException(Translator.toLocale("error.order.not_found", orderCode)));
+
+        User user = userRepo.findById(userId).orElseThrow(() -> new DataNotFoundException(
+                Translator.toLocale("error.user.not_found")
+        ));
+
+        boolean isSysAdmin = user.getUserRoles() != null && user.getUserRoles().stream()
+                .anyMatch(ur -> ur.getRole().getCode().equalsIgnoreCase("SYS_ADMIN"));
+
+        // Check quyền: Chỉ Admin của branch chứa đơn hàng này (hoặc SYS_ADMIN) mới được update
+        if (!isSysAdmin) {
+            Long userBranchId = user.getBranchId();
+            if (userBranchId == null || !userBranchId.equals(order.getBranchId())) {
+                throw new AccessDeniedException(Translator.toLocale("error.order.update_status_denied"));
+            }
+        }
+
+        // Logic check trạng thái hợp lệ (Nếu cần) -> Ở đây cho phép update đơn giản trước
+        // Có thể thêm logic: Nếu lên SHOW, check xem đã thanh toán chưa, v.v.
+
+        order.setStatus(status);
+        orderRepo.save(order);
+
+        // Notify user if needed about status change? (Optional)
     }
 }
